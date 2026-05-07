@@ -7,7 +7,8 @@ const MEGA_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mega-fitout-v1";
 const ANNUAL_SUMMARY_STORAGE_KEY = "warehouse-operation-dashboard-annual-summary-v1";
 const THEME_STORAGE_KEY = "warehouse-operation-dashboard-theme";
 const FITOUT_DASHBOARD_TYPES = ["MINI FIT-OUT", "MEGA FIT-OUT"];
-const OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle (overall)";
+const OLD_OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle (overall)";
+const OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle";
 const RENOVATION_SHEET_OPTIONS = [
   { label: OVERALL_RENOVATION_LABEL, sheetName: "Operation Plan" },
   { label: "CHODBIZ CHAENGWATTANA", sheetName: "CHODBIZ CHAENGWATTANA" },
@@ -1422,6 +1423,10 @@ function loadStoredRenovationRows() {
     const saved = localStorage.getItem(RENOVATION_STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
+    if (parsed[OLD_OVERALL_RENOVATION_LABEL] && !parsed[OVERALL_RENOVATION_LABEL]) {
+      parsed[OVERALL_RENOVATION_LABEL] = parsed[OLD_OVERALL_RENOVATION_LABEL];
+      delete parsed[OLD_OVERALL_RENOVATION_LABEL];
+    }
     const rowsByView = Object.fromEntries(
       Object.entries(parsed).map(([label, rows]) => [label, deserializeRows(rows).map((row) => enrichRow(row))])
     );

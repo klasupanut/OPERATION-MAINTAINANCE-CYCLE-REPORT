@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Warehouse Operation Dashboard</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260507-1659" />
+    <link rel="stylesheet" href="./styles.css?v=20260507-1850" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   </head>
@@ -18,12 +18,15 @@
           </div>
           <div>
             <p class="eyebrow">Operation Control</p>
-            <h1>Warehouse Dashboard</h1>
+            <div class="brand-title-row">
+              <h1>Warehouse Dashboard</h1>
+              <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">Dark</button>
+            </div>
           </div>
         </div>
 
         <nav class="dashboard-tabs" aria-label="Dashboard tabs">
-          <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle (overall)">
+          <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle">
             RENOVATION CYCLE
           </button>
           <button class="tab-button" type="button" data-tab="fitout" data-dashboard-title="Fit-Out Project">
@@ -34,7 +37,7 @@
           <label>
             Renovation View
             <select id="renovationType">
-              <option value="Warehouse Asset Renovation Cycle (overall)">Warehouse Asset Renovation Cycle (overall)</option>
+              <option value="Warehouse Asset Renovation Cycle">Warehouse Asset Renovation Cycle</option>
               <option value="CHODBIZ CHAENGWATTANA">CHODBIZ CHAENGWATTANA</option>
               <option value="CHOD BIZ BANGNA KM.8">CHOD BIZ BANGNA KM.8</option>
               <option value="CHODBIZ PUTTHAMONTHON SAI 4">CHODBIZ PUTTHAMONTHON SAI 4</option>
@@ -126,7 +129,7 @@
                 <small id="lastUpdated">No data yet</small>
               </div>
             </div>
-            <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle (overall)</h2>
+            <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle</h2>
           </div>
           <div class="topbar-actions">
             <div class="sheet-import topbar-sheet-import">
@@ -324,7 +327,7 @@
             </div>
           </div>
           <div class="table-wrap">
-            <table>
+            <table class="register-table">
               <thead>
                 <tr>
                   <th>Priority</th>
@@ -351,6 +354,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=20260507-1704"></script>
+    <script src="./app.js?v=20260507-1836"></script>
   </body>
 </html>
