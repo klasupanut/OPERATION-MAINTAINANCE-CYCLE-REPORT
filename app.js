@@ -237,6 +237,26 @@ function normalizeHeader(value) {
     .replace(/\s+/g, " ");
 }
 
+function normalizeDiscipline(value) {
+  const text = normalizeHeader(value);
+  if (!text) return "Uncategorized";
+  if (text.includes("structural") || text === "structure") return "Structural";
+  if (text.includes("architectural") || text === "architecture") return "Architectural";
+  if (text.includes("electrical") || text === "electric") return "Electrical";
+  if (text.includes("ventilation") || text.includes("hvac") || text.includes("exhaust")) return "Ventilation system";
+  return cleanValue(value) || "Uncategorized";
+}
+
+function sortDisciplines(items) {
+  const order = ["Structural", "Architectural", "Electrical", "Ventilation system", "Uncategorized"];
+  return [...items].sort((a, b) => {
+    const orderA = order.indexOf(a);
+    const orderB = order.indexOf(b);
+    if (orderA !== -1 || orderB !== -1) return (orderA === -1 ? 999 : orderA) - (orderB === -1 ? 999 : orderB);
+    return a.localeCompare(b, "en");
+  });
+}
+
 function findColumn(row, aliases) {
   const keys = Object.keys(row);
   return keys.find((key) => aliases.includes(normalizeHeader(key)));
@@ -260,7 +280,7 @@ function mapWorkbookRows(rows) {
       project: cleanValue(row[map.project]) || "Unassigned",
       block: cleanValue(row[map.block]) || "-",
       unit: cleanValue(row[map.unit]) || "-",
-      category: cleanValue(row[map.category]) || "Uncategorized",
+      category: normalizeDiscipline(row[map.category]),
       asset: cleanValue(row[map.asset]) || "Unnamed asset",
       area: cleanValue(row[map.area]) || "-",
       cycle: cleanValue(row[map.cycle]) || "-",
@@ -492,6 +512,7 @@ function enrichRow(row) {
   return {
     ...row,
     project: row.project || "Unassigned",
+    category: normalizeDiscipline(row.category),
     priority: normalizePriority(row.priority),
     contractor: row.contractor || "-",
     daysLeft,
@@ -818,8 +839,9 @@ function renderTable() {
 function renderCharts() {
   if (!window.Chart) return;
 
-  const categories = [...new Set(filteredRows.map((row) => row.category))];
-  const categoryData = categories.map((category) => filteredRows.filter((row) => row.category === category).length);
+  const disciplineCounts = countBy(filteredRows, "category");
+  const categories = sortDisciplines(Object.keys(disciplineCounts));
+  const categoryData = categories.map((category) => disciplineCounts[category] || 0);
   const statusItems = [
     { key: "overdue", label: "Overdue", color: "#bd3f32" },
     { key: "dueSoon", label: "Due Soon", color: "#d69028" },
@@ -1269,13 +1291,22 @@ function hexToRgba(hex, opacity) {
 }
 
 function chartOptions(indexAxis) {
+  const horizontalLabels = indexAxis === "y";
   return {
     responsive: true,
     maintainAspectRatio: false,
     indexAxis,
     scales: {
       x: { grid: { display: false }, ticks: { color: chartTextColor(), precision: 0 } },
-      y: { grid: { color: chartGridColor() }, ticks: { color: chartTextColor(), precision: 0 } }
+      y: {
+        grid: { color: chartGridColor() },
+        ticks: {
+          autoSkip: !horizontalLabels,
+          color: chartTextColor(),
+          font: { size: horizontalLabels ? 11 : 12 },
+          precision: 0
+        }
+      }
     },
     plugins: { legend: { display: false } }
   };
@@ -1290,7 +1321,7 @@ function countBy(rows, key) {
 
 function updateCategoryOptions() {
   const current = els.categoryFilter.value;
-  const categories = [...new Set(rawRows.map((row) => row.category))].sort((a, b) => a.localeCompare(b, "th"));
+  const categories = sortDisciplines(new Set(rawRows.map((row) => normalizeDiscipline(row.category))));
   els.categoryFilter.innerHTML = `<option value="all">All</option>${categories
     .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
     .join("")}`;

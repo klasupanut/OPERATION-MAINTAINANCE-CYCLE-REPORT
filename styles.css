@@ -762,6 +762,11 @@ button:hover {
   max-height: 200px;
 }
 
+#categoryChart {
+  height: 230px !important;
+  max-height: 230px;
+}
+
 .status-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(130px, 1fr));
@@ -1333,6 +1338,11 @@ body.light-theme .forecast-row div {
     max-height: 185px;
   }
 
+  #categoryChart {
+    height: 250px !important;
+    max-height: 250px;
+  }
+
   .status-legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 8px;
@@ -1447,6 +1457,11 @@ body.light-theme .forecast-row div {
   .chart-panel canvas {
     height: 165px !important;
     max-height: 165px;
+  }
+
+  #categoryChart {
+    height: 260px !important;
+    max-height: 260px;
   }
 
   .status-legend {
