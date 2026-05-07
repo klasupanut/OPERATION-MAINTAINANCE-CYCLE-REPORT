@@ -5,6 +5,7 @@ const RENOVATION_STORAGE_KEY = "warehouse-operation-dashboard-renovation-views-v
 const MINI_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mini-fitout-v2";
 const MEGA_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mega-fitout-v1";
 const ANNUAL_SUMMARY_STORAGE_KEY = "warehouse-operation-dashboard-annual-summary-v1";
+const THEME_STORAGE_KEY = "warehouse-operation-dashboard-theme";
 const FITOUT_DASHBOARD_TYPES = ["MINI FIT-OUT", "MEGA FIT-OUT"];
 const OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle (overall)";
 const RENOVATION_SHEET_OPTIONS = [
@@ -183,6 +184,7 @@ const els = {
   googleSheetUrl: document.querySelector("#googleSheetUrl"),
   syncSheetBtn: document.querySelector("#syncSheetBtn"),
   sheetStatus: document.querySelector("#sheetStatus"),
+  themeToggle: document.querySelector("#themeToggle"),
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
   projectFilter: document.querySelector("#projectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
@@ -351,6 +353,28 @@ function deriveBlockFromUnit(value) {
 
 function cleanValue(value) {
   return value === undefined || value === null ? "" : String(value).trim();
+}
+
+function applyTheme(theme, shouldRender = true) {
+  const lightMode = theme === "light";
+  document.body.classList.toggle("light-theme", lightMode);
+  els.themeToggle.textContent = lightMode ? "Light" : "Dark";
+  els.themeToggle.setAttribute("aria-pressed", String(lightMode));
+  els.themeToggle.title = lightMode ? "Switch to dark theme" : "Switch to light theme";
+  localStorage.setItem(THEME_STORAGE_KEY, lightMode ? "light" : "dark");
+  if (shouldRender) render();
+}
+
+function toggleTheme() {
+  applyTheme(document.body.classList.contains("light-theme") ? "dark" : "light");
+}
+
+function chartTextColor() {
+  return document.body.classList.contains("light-theme") ? "#17212b" : "#ffffff";
+}
+
+function chartGridColor() {
+  return document.body.classList.contains("light-theme") ? "rgba(100, 116, 139, 0.24)" : "rgba(226, 232, 240, 0.32)";
 }
 
 function parseDate(value) {
@@ -932,7 +956,7 @@ function renderFitoutDashboard() {
         legend: {
           position: "bottom",
           labels: {
-            color: "#ffffff"
+            color: chartTextColor()
           }
         }
       }
@@ -979,18 +1003,18 @@ function renderFitoutDashboard() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: "#ffffff" }
+          ticks: { color: chartTextColor() }
         },
         y: {
-          grid: { color: "rgba(226, 232, 240, 0.32)" },
-          ticks: { color: "#ffffff", callback: (value) => formatCompactBudget(value) }
+          grid: { color: chartGridColor() },
+          ticks: { color: chartTextColor(), callback: (value) => formatCompactBudget(value) }
         }
       },
       plugins: {
         legend: {
           position: "bottom",
           labels: {
-            color: "#ffffff",
+            color: chartTextColor(),
             generateLabels(chart) {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
@@ -1087,18 +1111,18 @@ function renderAnnualPerformanceDashboard() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: "#ffffff" }
+          ticks: { color: chartTextColor() }
         },
         y: {
-          grid: { color: "rgba(226, 232, 240, 0.32)" },
-          ticks: { color: "#ffffff", callback: (value) => formatCompactBudget(value) }
+          grid: { color: chartGridColor() },
+          ticks: { color: chartTextColor(), callback: (value) => formatCompactBudget(value) }
         }
       },
       plugins: {
         legend: {
           position: "bottom",
           labels: {
-            color: "#ffffff",
+            color: chartTextColor(),
             generateLabels(chart) {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
@@ -1176,9 +1200,9 @@ const barValueLabelPlugin = {
     const { ctx } = chart;
     ctx.save();
     ctx.font = "700 11px Segoe UI, Arial, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-    ctx.shadowBlur = 4;
+    ctx.fillStyle = chartTextColor();
+    ctx.shadowColor = document.body.classList.contains("light-theme") ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = document.body.classList.contains("light-theme") ? 2 : 4;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
 
@@ -1249,8 +1273,8 @@ function chartOptions(indexAxis) {
     maintainAspectRatio: false,
     indexAxis,
     scales: {
-      x: { grid: { display: false }, ticks: { precision: 0 } },
-      y: { grid: { color: "#edf1f3" }, ticks: { precision: 0 } }
+      x: { grid: { display: false }, ticks: { color: chartTextColor(), precision: 0 } },
+      y: { grid: { color: chartGridColor() }, ticks: { color: chartTextColor(), precision: 0 } }
     },
     plugins: { legend: { display: false } }
   };
@@ -1756,14 +1780,17 @@ function parseCsv(text) {
     rows.push(row);
   }
 
-  const [header = [], ...body] = rows.filter((line) => line.some((value) => value.trim()));
+const [header = [], ...body] = rows.filter((line) => line.some((value) => value.trim()));
   return body.map((line) => Object.fromEntries(header.map((key, index) => [key.trim(), line[index] || ""])));
 }
+
+applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "dark", false);
 
 els.file.addEventListener("change", (event) => {
   const [file] = event.target.files;
   if (file) readExcel(file);
 });
+els.themeToggle.addEventListener("click", toggleTheme);
 els.tabButtons.forEach((button) => button.addEventListener("click", () => setActiveDashboardTab(button)));
 els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
