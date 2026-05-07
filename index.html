@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Warehouse Operation Dashboard</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-logo">
+            <img src="./assets/chod-white.png" alt="CHOD" />
+          </div>
+          <div>
+            <p class="eyebrow">Operation Control</p>
+            <h1>Warehouse Dashboard</h1>
+          </div>
+        </div>
+
+        <section class="panel upload-panel">
+          <label class="file-drop" for="excelFile">
+            <span class="file-icon">+</span>
+            <strong>Import Excel</strong>
+            <small>.xlsx, .xls or .csv</small>
+          </label>
+          <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
+          <button id="loadSampleBtn" class="secondary-button" type="button">Click To Upload</button>
+          <div class="sheet-import">
+            <label>
+              Google Sheet URL
+              <input id="googleSheetUrl" type="url" placeholder="Paste public Google Sheet URL" />
+            </label>
+            <button id="syncSheetBtn" class="secondary-button" type="button">Sync Google Sheet</button>
+            <small id="sheetStatus">Use a published CSV link or public Google Sheet URL.</small>
+          </div>
+        </section>
+
+        <nav class="dashboard-tabs" aria-label="Dashboard tabs">
+          <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle">
+            RENOVATION CYCLE
+          </button>
+          <button class="tab-button" type="button" data-tab="fitout" data-dashboard-title="Fit-Out Project">
+            FIT-OUT PROJECT
+          </button>
+        </nav>
+        <div id="fitoutSelector" class="tab-subselector" hidden>
+          <label>
+            Fit-Out Type
+            <select id="fitoutType">
+              <option value="Annual Performance Summary">Annual Performance Summary</option>
+              <option value="MINI FIT-OUT">MINI FIT-OUT</option>
+              <option value="MEGA FIT-OUT">MEGA FIT-OUT</option>
+            </select>
+          </label>
+        </div>
+
+        <section class="panel">
+          <h2>Filters</h2>
+          <label>
+            Project
+            <select id="projectFilter">
+              <option value="all">All</option>
+              <option value="F&amp;WH CHODTHANAWAT 1">F&amp;WH CHODTHANAWAT 1</option>
+              <option value="F&amp;WH CHODTHANAWAT 2">F&amp;WH CHODTHANAWAT 2</option>
+              <option value="F&amp;WH CHODTHANAWAT 3">F&amp;WH CHODTHANAWAT 3</option>
+              <option value="F&amp;WH CHODTHANAWAT 5">F&amp;WH CHODTHANAWAT 5</option>
+              <option value="CHODBIZ CHAENGWATTANA">CHODBIZ CHAENGWATTANA</option>
+              <option value="CHODBIZ BANGNA KM.8">CHODBIZ BANGNA KM.8</option>
+              <option value="CHODBIZ PUTTHAMONTHON SAI 4">CHODBIZ PUTTHAMONTHON SAI 4</option>
+            </select>
+          </label>
+          <label>
+            Discipline
+            <select id="categoryFilter">
+              <option value="all">All</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="statusFilter">
+              <option value="all">All</option>
+              <option value="overdue">Overdue</option>
+              <option value="dueSoon">Due Soon</option>
+              <option value="planned">Planned</option>
+              <option value="done">Completed</option>
+            </select>
+          </label>
+          <label>
+            Search
+            <input id="searchBox" type="search" placeholder="Asset, area, owner" />
+          </label>
+        </section>
+
+        <section class="panel compact">
+          <h2>Excel Column Format</h2>
+          <p>
+            Supported headers include project, block, unit, category, asset, area, improvement cycle,
+            last update, due date, status, owner, and budget.
+          </p>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Real-time Snapshot</p>
+            <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle</h2>
+          </div>
+          <div class="live-chip">
+            <span></span>
+            <strong>Live</strong>
+            <small id="lastUpdated">No data yet</small>
+          </div>
+        </header>
+
+        <section class="fitout-view" id="fitoutDashboard" hidden>
+          <div class="fitout-metrics">
+            <article class="metric neutral">
+              <span>Actual CapEx</span>
+              <strong id="fitoutCapexTotal">THB 0</strong>
+              <small id="fitoutCapexLabel">MINI FIT-OUT</small>
+            </article>
+            <article class="metric success">
+              <span>Realized Revenue</span>
+              <strong id="fitoutRevenueTotal">THB 0</strong>
+              <small id="fitoutRevenueLabel">MINI FIT-OUT</small>
+            </article>
+            <article class="metric warning">
+              <span>Net Operating Profit</span>
+              <strong id="fitoutProfitTotal">THB 0</strong>
+              <small>Revenue minus CapEx</small>
+            </article>
+          </div>
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>Actual CapEx vs Realized Revenue</h3>
+              <small id="fitoutRecordCount">0 records</small>
+            </div>
+            <canvas id="fitoutFinanceChart" height="180"></canvas>
+          </article>
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>Quarterly Profit Summary</h3>
+              <small>Grouped by finish date</small>
+            </div>
+            <canvas id="fitoutQuarterChart" height="180"></canvas>
+          </article>
+          <article class="chart-panel fitout-quarter-detail">
+            <div class="section-title">
+              <h3>Quarterly Work List</h3>
+              <small>Project / Unit</small>
+            </div>
+            <div id="fitoutQuarterList" class="quarter-list"></div>
+          </article>
+        </section>
+
+        <section class="annual-view" id="annualDashboard" hidden>
+          <div class="fitout-metrics">
+            <article class="metric success">
+              <span>Annual Revenue</span>
+              <strong id="annualRevenueTotal">THB 0</strong>
+              <small>Realized Revenue</small>
+            </article>
+            <article class="metric warning">
+              <span>Net Profit</span>
+              <strong id="annualProfitTotal">THB 0</strong>
+              <small>Operating contribution</small>
+            </article>
+            <article class="metric neutral">
+              <span>Capital Invested</span>
+              <strong id="annualCapexTotal">THB 0</strong>
+              <small>Actual CapEx</small>
+            </article>
+            <article class="metric danger">
+              <span>Profit Margin</span>
+              <strong id="annualMarginTotal">0%</strong>
+              <small>Profit / revenue</small>
+            </article>
+          </div>
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>Annual Performance Summary</h3>
+              <small>MINI FIT-OUT + MEGA FIT-OUT</small>
+            </div>
+            <canvas id="annualPerformanceChart" height="180"></canvas>
+          </article>
+          <article class="table-section annual-table">
+            <div class="section-title">
+              <h3>Executive Revenue Contribution</h3>
+              <small>Yearly summary</small>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th>Total Jobs</th>
+                    <th>Mini Jobs</th>
+                    <th>Mega Jobs</th>
+                    <th>Actual CapEx</th>
+                    <th>Realized Revenue</th>
+                    <th>Net Operating Profit</th>
+                    <th>Profit Margin</th>
+                  </tr>
+                </thead>
+                <tbody id="annualSummaryTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="kpi-grid renovation-view" aria-label="Main KPIs">
+          <article class="metric danger">
+            <span>Overdue</span>
+            <strong id="overdueCount">0</strong>
+            <small>Items requiring action</small>
+          </article>
+          <article class="metric warning">
+            <span>Due Soon</span>
+            <strong id="dueSoonCount">0</strong>
+            <small>Within 30 days</small>
+          </article>
+          <article class="metric success">
+            <span>Planned</span>
+            <strong id="plannedCount">0</strong>
+            <small>Not yet due</small>
+          </article>
+          <article class="metric neutral">
+            <span>Visible Budget</span>
+            <strong id="budgetTotal">THB 0</strong>
+            <small>From filtered records</small>
+          </article>
+        </section>
+
+        <section class="roadmap-section renovation-view" aria-label="Budget horizon summary">
+          <div class="section-title">
+            <h3>Budget Utilization Roadmap</h3>
+          </div>
+          <div class="budget-horizon-grid">
+          <article class="metric horizon short">
+            <span>Short Term</span>
+            <strong id="shortBudget">THB 0</strong>
+            <small>2-year cycle budget</small>
+          </article>
+          <article class="metric horizon medium">
+            <span>Mid Term</span>
+            <strong id="midBudget">THB 0</strong>
+            <small>5-year cycle budget</small>
+          </article>
+          <article class="metric horizon long">
+            <span>Long Term</span>
+            <strong id="longBudget">THB 0</strong>
+            <small>10-year cycle budget</small>
+          </article>
+          </div>
+        </section>
+
+        <section class="dashboard-grid renovation-view">
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>Records by Discipline</h3>
+              <small id="recordCount">0 records</small>
+            </div>
+            <canvas id="categoryChart" height="150"></canvas>
+          </article>
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>Status Mix</h3>
+              <small>Updates with filters</small>
+            </div>
+            <canvas id="statusChart" height="150"></canvas>
+          </article>
+        </section>
+
+        <section class="executive-panels renovation-view">
+          <article class="chart-panel">
+            <div class="section-title">
+              <h3>5-Year Budget Forecast</h3>
+              <small>Annual improvement cycle budget</small>
+            </div>
+            <div id="annualForecast" class="forecast-grid"></div>
+          </article>
+        </section>
+
+        <section class="table-section renovation-view">
+          <div class="section-title">
+            <h3>Improvement Register</h3>
+            <div class="actions">
+              <button id="exportBtn" type="button">Export CSV</button>
+              <button id="refreshBtn" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Contractor</th>
+                  <th>Project</th>
+                  <th>Block</th>
+                  <th>Unit</th>
+                  <th>Discipline</th>
+                  <th>Asset / Area</th>
+                  <th>Cycle (Months)</th>
+                  <th>Last Update</th>
+                  <th>Due Date</th>
+                  <th>Remaining</th>
+                  <th>Owner</th>
+                  <th>Budget</th>
+                </tr>
+              </thead>
+              <tbody id="assetTable"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state">No records yet. Import Excel or load sample data.</div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
