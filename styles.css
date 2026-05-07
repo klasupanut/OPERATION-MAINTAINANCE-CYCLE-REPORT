@@ -855,6 +855,31 @@ button:hover {
   border-radius: 8px;
 }
 
+.register-table-wrap {
+  max-height: min(620px, 68vh);
+  scrollbar-color: rgba(53, 216, 255, 0.72) rgba(10, 22, 28, 0.86);
+  scrollbar-width: thin;
+}
+
+.register-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.register-table-wrap::-webkit-scrollbar-track {
+  background: rgba(10, 22, 28, 0.86);
+}
+
+.register-table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(10, 22, 28, 0.86);
+  border-radius: 999px;
+  background: rgba(53, 216, 255, 0.72);
+}
+
+.register-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(32, 227, 162, 0.86);
+}
+
 table {
   width: 100%;
   min-width: 1420px;
@@ -879,6 +904,39 @@ th {
   color: #d8f4ff;
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.table-header-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-header-filter select {
+  width: 86px;
+  min-height: 21px;
+  padding: 0 18px 0 8px;
+  border: 1px solid rgba(53, 216, 255, 0.34);
+  border-radius: 999px;
+  background:
+    linear-gradient(45deg, transparent 48%, #d8f4ff 50%, transparent 52%) right 8px center / 7px 7px no-repeat,
+    linear-gradient(180deg, rgba(53, 216, 255, 0.2), rgba(32, 227, 162, 0.08)),
+    rgba(7, 17, 23, 0.94);
+  color: #d8f4ff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  outline: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 12px rgba(53, 216, 255, 0.08);
+  appearance: none;
+}
+
+.table-header-filter select:hover,
+.table-header-filter select:focus {
+  border-color: rgba(53, 216, 255, 0.72);
+  box-shadow: 0 0 0 3px rgba(53, 216, 255, 0.1);
 }
 
 td {
@@ -1406,6 +1464,10 @@ body.light-theme .forecast-row div {
     -webkit-overflow-scrolling: touch;
   }
 
+  .register-table-wrap {
+    max-height: 62vh;
+  }
+
   table {
     min-width: 1120px;
   }
@@ -1414,6 +1476,17 @@ body.light-theme .forecast-row div {
   td {
     padding: 10px 11px;
     font-size: 12px;
+  }
+
+  .table-header-filter {
+    gap: 5px;
+  }
+
+  .table-header-filter select {
+    width: 78px;
+    min-height: 20px;
+    padding-right: 16px;
+    font-size: 9px;
   }
 }
 

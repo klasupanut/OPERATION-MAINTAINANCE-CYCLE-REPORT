@@ -191,6 +191,7 @@ const els = {
   themeToggle: document.querySelector("#themeToggle"),
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
   projectFilter: document.querySelector("#projectFilter"),
+  registerProjectFilter: document.querySelector("#registerProjectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   statusFilter: document.querySelector("#statusFilter"),
   searchBox: document.querySelector("#searchBox"),
@@ -584,6 +585,9 @@ function daysLabel(daysLeft) {
 
 function applyFilters() {
   const project = els.projectFilter.value;
+  if (els.registerProjectFilter && els.registerProjectFilter.value !== project) {
+    els.registerProjectFilter.value = project;
+  }
   const category = els.categoryFilter.value;
   const status = els.statusFilter.value;
   const keyword = normalizeHeader(els.searchBox.value);
@@ -1885,6 +1889,10 @@ els.mobileGoogleSheetUrl?.addEventListener("input", () => {
 });
 els.clearFilterBtn.addEventListener("click", clearRenovationFilters);
 els.projectFilter.addEventListener("change", applyFilters);
+els.registerProjectFilter?.addEventListener("change", () => {
+  els.projectFilter.value = els.registerProjectFilter.value;
+  applyFilters();
+});
 els.categoryFilter.addEventListener("change", applyFilters);
 els.statusFilter.addEventListener("change", applyFilters);
 els.searchBox.addEventListener("input", applyFilters);
