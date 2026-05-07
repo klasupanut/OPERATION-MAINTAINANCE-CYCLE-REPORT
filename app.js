@@ -19,9 +19,9 @@ const RENOVATION_SHEET_OPTIONS = [
 ];
 const fitoutPalettes = {
   "MINI FIT-OUT": {
-    capex: "#2f6f9f",
-    revenue: "#1f7a59",
-    profit: "#d69028"
+    capex: "#35d8ff",
+    revenue: "#20e3a2",
+    profit: "#ffd166"
   },
   "MEGA FIT-OUT": {
     capex: "#7c3aed",
@@ -920,8 +920,8 @@ function renderFitoutDashboard() {
         {
           data: [capex, revenue],
           backgroundColor: [palette.capex, palette.revenue],
-          borderColor: "#ffffff",
-          borderWidth: 2
+          borderColor: [palette.capex, palette.revenue],
+          borderWidth: 0
         }
       ]
     },
@@ -930,7 +930,10 @@ function renderFitoutDashboard() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: "bottom"
+          position: "bottom",
+          labels: {
+            color: "#ffffff"
+          }
         }
       }
     }
@@ -974,20 +977,28 @@ function renderFitoutDashboard() {
         }
       },
       scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: "#edf1f3" }, ticks: { callback: (value) => formatCompactBudget(value) } }
+        x: {
+          grid: { display: false },
+          ticks: { color: "#ffffff" }
+        },
+        y: {
+          grid: { color: "rgba(226, 232, 240, 0.32)" },
+          ticks: { color: "#ffffff", callback: (value) => formatCompactBudget(value) }
+        }
       },
       plugins: {
         legend: {
           position: "bottom",
           labels: {
+            color: "#ffffff",
             generateLabels(chart) {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
                 return {
                   ...label,
                   fillStyle: dataset.legendColor,
-                  strokeStyle: dataset.legendColor
+                  strokeStyle: dataset.legendColor,
+                  lineWidth: 0
                 };
               });
             }
@@ -1045,22 +1056,22 @@ function renderAnnualPerformanceDashboard() {
         {
           label: "Actual CapEx",
           data: rows.map((row) => row.actualCapex),
-          backgroundColor: createHoverAwareColor("#2f6f9f", "annual-capex"),
-          legendColor: "#2f6f9f",
+          backgroundColor: createHoverAwareColor("#35d8ff", "annual-capex"),
+          legendColor: "#35d8ff",
           borderRadius: 6
         },
         {
           label: "Realized Revenue",
           data: rows.map((row) => row.realizedRevenue),
-          backgroundColor: createHoverAwareColor("#1f7a59", "annual-revenue"),
-          legendColor: "#1f7a59",
+          backgroundColor: createHoverAwareColor("#20e3a2", "annual-revenue"),
+          legendColor: "#20e3a2",
           borderRadius: 6
         },
         {
           label: "Net Operating Profit",
           data: rows.map((row) => row.netOperatingProfit),
-          backgroundColor: createHoverAwareColor("#d69028", "annual-profit"),
-          legendColor: "#d69028",
+          backgroundColor: createHoverAwareColor("#ffd166", "annual-profit"),
+          legendColor: "#ffd166",
           borderRadius: 6
         }
       ]
@@ -1068,21 +1079,34 @@ function renderAnnualPerformanceDashboard() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 26
+        }
+      },
       scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: "#edf1f3" }, ticks: { callback: (value) => formatCompactBudget(value) } }
+        x: {
+          grid: { display: false },
+          ticks: { color: "#ffffff" }
+        },
+        y: {
+          grid: { color: "rgba(226, 232, 240, 0.32)" },
+          ticks: { color: "#ffffff", callback: (value) => formatCompactBudget(value) }
+        }
       },
       plugins: {
         legend: {
           position: "bottom",
           labels: {
+            color: "#ffffff",
             generateLabels(chart) {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
                 return {
                   ...label,
                   fillStyle: dataset.legendColor,
-                  strokeStyle: dataset.legendColor
+                  strokeStyle: dataset.legendColor,
+                  lineWidth: 0
                 };
               });
             }
@@ -1090,7 +1114,8 @@ function renderAnnualPerformanceDashboard() {
         }
       },
       onHover: handleHoverFade
-    }
+    },
+    plugins: [barValueLabelPlugin]
   });
 }
 
@@ -1151,7 +1176,9 @@ const barValueLabelPlugin = {
     const { ctx } = chart;
     ctx.save();
     ctx.font = "700 11px Segoe UI, Arial, sans-serif";
-    ctx.fillStyle = "#2b343d";
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = 4;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
 
