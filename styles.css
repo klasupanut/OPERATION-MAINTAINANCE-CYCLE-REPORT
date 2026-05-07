@@ -347,9 +347,29 @@ button:hover {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(130px, 0.78fr)) minmax(300px, 1.6fr);
   gap: 14px;
   margin-bottom: 14px;
+}
+
+.kpi-grid .metric {
+  min-width: 0;
+}
+
+.kpi-grid .metric span,
+.kpi-grid .metric small {
+  line-height: 1.35;
+}
+
+.kpi-grid .metric strong {
+  min-height: 34px;
+  font-size: 30px;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.kpi-grid .metric.neutral strong {
+  letter-spacing: 0;
 }
 
 .fitout-view,
@@ -517,6 +537,10 @@ button:hover {
 
 .metric.success strong {
   color: var(--green);
+}
+
+.metric.done strong {
+  color: #7897b3;
 }
 
 .metric.neutral strong {

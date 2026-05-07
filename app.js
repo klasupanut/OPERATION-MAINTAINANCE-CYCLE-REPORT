@@ -197,6 +197,7 @@ const els = {
   overdueCount: document.querySelector("#overdueCount"),
   dueSoonCount: document.querySelector("#dueSoonCount"),
   plannedCount: document.querySelector("#plannedCount"),
+  completedCount: document.querySelector("#completedCount"),
   budgetTotal: document.querySelector("#budgetTotal"),
   shortBudget: document.querySelector("#shortBudget"),
   midBudget: document.querySelector("#midBudget"),
@@ -631,6 +632,7 @@ function renderKpis() {
   els.overdueCount.innerHTML = formatKpiRatio(counts.overdue || 0, totalRows);
   els.dueSoonCount.innerHTML = formatKpiRatio(counts.dueSoon || 0, totalRows);
   els.plannedCount.innerHTML = formatKpiRatio(counts.planned || 0, totalRows);
+  els.completedCount.innerHTML = formatKpiRatio(counts.done || 0, totalRows);
   els.budgetTotal.textContent = formatBudget(filteredRows.reduce((sum, row) => sum + row.budget, 0));
   els.shortBudget.textContent = formatBudget(horizonBudget.short);
   els.midBudget.textContent = formatBudget(horizonBudget.medium);
