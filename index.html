@@ -35,19 +35,34 @@
               Google Sheet URL
               <input id="googleSheetUrl" type="url" placeholder="Paste public Google Sheet URL" />
             </label>
-            <button id="syncSheetBtn" class="secondary-button" type="button">Sync Google Sheet</button>
-            <small id="sheetStatus">Use a published CSV link or public Google Sheet URL.</small>
+            <button id="syncSheetBtn" class="secondary-button" type="button">Sync All Dashboards</button>
+            <small id="sheetStatus">Paste one public Google Sheet URL to update every dashboard.</small>
           </div>
         </section>
 
         <nav class="dashboard-tabs" aria-label="Dashboard tabs">
-          <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle">
+          <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle (overall)">
             RENOVATION CYCLE
           </button>
           <button class="tab-button" type="button" data-tab="fitout" data-dashboard-title="Fit-Out Project">
             FIT-OUT PROJECT
           </button>
         </nav>
+        <div id="renovationSelector" class="tab-subselector">
+          <label>
+            Renovation View
+            <select id="renovationType">
+              <option value="Warehouse Asset Renovation Cycle (overall)">Warehouse Asset Renovation Cycle (overall)</option>
+              <option value="CHODBIZ CHAENGWATTANA">CHODBIZ CHAENGWATTANA</option>
+              <option value="CHOD BIZ BANGNA KM.8">CHOD BIZ BANGNA KM.8</option>
+              <option value="CHODBIZ PUTTHAMONTHON SAI 4">CHODBIZ PUTTHAMONTHON SAI 4</option>
+              <option value="F&amp;W CHODTHANAWAT 1">F&amp;W CHODTHANAWAT 1</option>
+              <option value="F&amp;W CHODTHANAWAT 2">F&amp;W CHODTHANAWAT 2</option>
+              <option value="F&amp;W CHODTHANAWAT 3">F&amp;W CHODTHANAWAT 3</option>
+              <option value="F&amp;W CHODTHANAWAT 5">F&amp;W CHODTHANAWAT 5</option>
+            </select>
+          </label>
+        </div>
         <div id="fitoutSelector" class="tab-subselector" hidden>
           <label>
             Fit-Out Type
@@ -109,7 +124,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">Real-time Snapshot</p>
-            <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle</h2>
+            <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle (overall)</h2>
           </div>
           <div class="live-chip">
             <span></span>

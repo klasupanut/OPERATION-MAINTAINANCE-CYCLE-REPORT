@@ -472,6 +472,12 @@ button:hover {
   line-height: 1;
 }
 
+.metric strong .kpi-total {
+  color: var(--muted);
+  font-size: 0.58em;
+  font-weight: 500;
+}
+
 .metric.danger strong {
   color: var(--red);
 }

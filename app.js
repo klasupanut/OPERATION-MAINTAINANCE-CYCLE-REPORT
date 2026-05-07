@@ -1,13 +1,25 @@
 ﻿const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DUE_SOON_DAYS = 30;
 const STORAGE_KEY = "warehouse-operation-dashboard-rows-v9";
+const RENOVATION_STORAGE_KEY = "warehouse-operation-dashboard-renovation-views-v1";
 const MINI_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mini-fitout-v2";
 const MEGA_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mega-fitout-v1";
 const ANNUAL_SUMMARY_STORAGE_KEY = "warehouse-operation-dashboard-annual-summary-v1";
 const FITOUT_DASHBOARD_TYPES = ["MINI FIT-OUT", "MEGA FIT-OUT"];
+const OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle (overall)";
+const RENOVATION_SHEET_OPTIONS = [
+  { label: OVERALL_RENOVATION_LABEL, sheetName: "Operation Plan" },
+  { label: "CHODBIZ CHAENGWATTANA", sheetName: "CHODBIZ CHAENGWATTANA" },
+  { label: "CHOD BIZ BANGNA KM.8", sheetName: "CHOD BIZ BANGNA KM.8" },
+  { label: "CHODBIZ PUTTHAMONTHON SAI 4", sheetName: "CHODBIZ PUTTHAMONTHON SAI 4" },
+  { label: "F&W CHODTHANAWAT 1", sheetName: "F&W CHODTHANAWAT 1" },
+  { label: "F&W CHODTHANAWAT 2", sheetName: "F&W CHODTHANAWAT 2" },
+  { label: "F&W CHODTHANAWAT 3", sheetName: "F&W CHODTHANAWAT 3" },
+  { label: "F&W CHODTHANAWAT 5", sheetName: "F&W CHODTHANAWAT 5" }
+];
 const fitoutPalettes = {
   "MINI FIT-OUT": {
-    capex: "#bd3f32",
+    capex: "#2f6f9f",
     revenue: "#1f7a59",
     profit: "#d69028"
   },
@@ -155,6 +167,7 @@ const sampleMegaFitoutRows = [
 
 let rawRows = [];
 let filteredRows = [];
+let renovationRowsByView = {};
 let miniFitoutRows = [];
 let megaFitoutRows = [];
 let annualSummaryRows = [];
@@ -190,6 +203,8 @@ const els = {
   annualForecast: document.querySelector("#annualForecast"),
   dashboardTitle: document.querySelector("#dashboardTitle"),
   tabButtons: document.querySelectorAll(".tab-button"),
+  renovationSelector: document.querySelector("#renovationSelector"),
+  renovationType: document.querySelector("#renovationType"),
   fitoutSelector: document.querySelector("#fitoutSelector"),
   fitoutType: document.querySelector("#fitoutType"),
   renovationViews: document.querySelectorAll(".renovation-view"),
@@ -532,6 +547,13 @@ function applyFilters() {
   render();
 }
 
+function resetRenovationFilters() {
+  els.projectFilter.value = "all";
+  els.categoryFilter.value = "all";
+  els.statusFilter.value = "all";
+  els.searchBox.value = "";
+}
+
 function render() {
   renderDashboardMode();
   renderKpis();
@@ -549,6 +571,14 @@ function activeTabName() {
   return [...els.tabButtons].find((tab) => tab.classList.contains("active"))?.dataset.tab || "renovation";
 }
 
+function activeRenovationLabel() {
+  return els.renovationType?.value || RENOVATION_SHEET_OPTIONS[0].label;
+}
+
+function activeRenovationSheetName() {
+  return RENOVATION_SHEET_OPTIONS.find((option) => option.label === activeRenovationLabel())?.sheetName || "Operation Plan";
+}
+
 function isRenovationView() {
   return activeTabName() === "renovation";
 }
@@ -562,7 +592,7 @@ function isAnnualPerformanceView() {
 }
 
 function activeGoogleSheetName() {
-  if (activeTabName() !== "fitout") return "Operation Plan";
+  if (activeTabName() !== "fitout") return activeRenovationSheetName();
   if (els.fitoutType.value === "MINI FIT-OUT") return "MINI FIT-OUT";
   if (els.fitoutType.value === "MEGA FIT-OUT") return "MEGA FIT-OUT";
   return "Annual Performance Summary";
@@ -590,13 +620,18 @@ function updateLiveClock() {
 function renderKpis() {
   const counts = countBy(filteredRows, "status");
   const horizonBudget = calculateHorizonBudget(filteredRows);
-  els.overdueCount.textContent = counts.overdue || 0;
-  els.dueSoonCount.textContent = counts.dueSoon || 0;
-  els.plannedCount.textContent = counts.planned || 0;
+  const totalRows = filteredRows.length;
+  els.overdueCount.innerHTML = formatKpiRatio(counts.overdue || 0, totalRows);
+  els.dueSoonCount.innerHTML = formatKpiRatio(counts.dueSoon || 0, totalRows);
+  els.plannedCount.innerHTML = formatKpiRatio(counts.planned || 0, totalRows);
   els.budgetTotal.textContent = formatBudget(filteredRows.reduce((sum, row) => sum + row.budget, 0));
   els.shortBudget.textContent = formatBudget(horizonBudget.short);
   els.midBudget.textContent = formatBudget(horizonBudget.medium);
   els.longBudget.textContent = formatBudget(horizonBudget.long);
+}
+
+function formatKpiRatio(value, total) {
+  return `${value}<span class="kpi-total">/${total}</span>`;
 }
 
 function calculateHorizonBudget(rows) {
@@ -961,7 +996,7 @@ function renderAnnualPerformanceDashboard() {
         {
           label: "Actual CapEx",
           data: rows.map((row) => row.actualCapex),
-          backgroundColor: "#bd3f32",
+          backgroundColor: "#2f6f9f",
           borderRadius: 6
         },
         {
@@ -1123,9 +1158,22 @@ function updateCategoryOptions() {
 function setActiveDashboardTab(button) {
   els.tabButtons.forEach((tab) => tab.classList.toggle("active", tab === button));
   const isFitout = button.dataset.tab === "fitout";
+  els.renovationSelector.hidden = isFitout;
   els.fitoutSelector.hidden = !isFitout;
-  els.dashboardTitle.textContent = isFitout ? els.fitoutType.value : button.dataset.dashboardTitle || "Warehouse Asset Renovation Cycle";
-  render();
+  els.dashboardTitle.textContent = isFitout ? els.fitoutType.value : activeRenovationLabel();
+  if (isFitout) {
+    render();
+  } else {
+    applyActiveRenovationRows();
+  }
+}
+
+function updateRenovationTitle() {
+  if (isRenovationView()) {
+    els.dashboardTitle.textContent = activeRenovationLabel();
+    resetRenovationFilters();
+    applyActiveRenovationRows();
+  }
 }
 
 function updateFitoutTitle() {
@@ -1143,8 +1191,17 @@ function escapeHtml(value) {
 }
 
 function setRows(rows) {
-  rawRows = rows.map((row) => enrichRow(row));
-  saveRows(rawRows);
+  const label = activeRenovationLabel();
+  renovationRowsByView[label] = rows.map((row) => enrichRow(row));
+  rawRows = renovationRowsByView[label];
+  saveRenovationRows();
+  if (label === RENOVATION_SHEET_OPTIONS[0].label) saveRows(rawRows);
+  updateCategoryOptions();
+  applyFilters();
+}
+
+function applyActiveRenovationRows() {
+  rawRows = renovationRowsByView[activeRenovationLabel()] || [];
   updateCategoryOptions();
   applyFilters();
 }
@@ -1167,6 +1224,27 @@ function setAnnualSummaryRows(rows) {
   render();
 }
 
+function setAllDashboardRows({ renovationRows, operationRows, annualRows, miniRows, megaRows }) {
+  renovationRowsByView = Object.fromEntries(
+    Object.entries(renovationRows || { [RENOVATION_SHEET_OPTIONS[0].label]: operationRows || [] }).map(([label, rows]) => [
+      label,
+      rows.map((row) => enrichRow(row))
+    ])
+  );
+  rawRows = renovationRowsByView[activeRenovationLabel()] || renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] || [];
+  miniFitoutRows = miniRows;
+  megaFitoutRows = megaRows;
+  annualSummaryRows = annualRows;
+  saveRenovationRows();
+  saveRows(renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] || rawRows);
+  localStorage.setItem(MINI_FITOUT_STORAGE_KEY, JSON.stringify(serializeMiniFitoutRows(miniFitoutRows)));
+  localStorage.setItem(MEGA_FITOUT_STORAGE_KEY, JSON.stringify(serializeMiniFitoutRows(megaFitoutRows)));
+  localStorage.setItem(ANNUAL_SUMMARY_STORAGE_KEY, JSON.stringify(serializeAnnualSummaryRows(annualSummaryRows)));
+  if (isRenovationView()) resetRenovationFilters();
+  updateCategoryOptions();
+  applyFilters();
+}
+
 function setActiveFitoutRows(rows) {
   if (els.fitoutType.value === "MEGA FIT-OUT") {
     setMegaFitoutRows(rows);
@@ -1179,6 +1257,13 @@ function saveRows(rows) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeRows(rows)));
 }
 
+function saveRenovationRows() {
+  const serialized = Object.fromEntries(
+    Object.entries(renovationRowsByView).map(([label, rows]) => [label, serializeRows(rows)])
+  );
+  localStorage.setItem(RENOVATION_STORAGE_KEY, JSON.stringify(serialized));
+}
+
 function loadStoredRows() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -1187,6 +1272,21 @@ function loadStoredRows() {
     return Array.isArray(rows) && rows.length ? rows : null;
   } catch (error) {
     localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+function loadStoredRenovationRows() {
+  try {
+    const saved = localStorage.getItem(RENOVATION_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    const rowsByView = Object.fromEntries(
+      Object.entries(parsed).map(([label, rows]) => [label, deserializeRows(rows).map((row) => enrichRow(row))])
+    );
+    return Object.values(rowsByView).some((rows) => rows.length) ? rowsByView : null;
+  } catch (error) {
+    localStorage.removeItem(RENOVATION_STORAGE_KEY);
     return null;
   }
 }
@@ -1287,16 +1387,19 @@ function readExcel(file) {
     }
 
     const workbook = XLSX.read(event.target.result, { type: "array", cellDates: true });
+    const activeRenovationSheet = workbook.Sheets[activeRenovationSheetName()];
     const operationPlanSheet = workbook.Sheets["Operation Plan"];
-    const sheet = isRenovationView() && operationPlanSheet ? operationPlanSheet : workbook.Sheets[workbook.SheetNames[0]];
+    const sheet = isRenovationView() && (activeRenovationSheet || operationPlanSheet)
+      ? activeRenovationSheet || operationPlanSheet
+      : workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
     if (isFitoutDashboardView()) {
       setActiveFitoutRows(mapMiniFitoutRows(rows));
     } else if (isAnnualPerformanceView()) {
       setAnnualSummaryRows(mapAnnualSummaryRows(rows));
     } else if (isRenovationView()) {
-      if (!operationPlanSheet && workbook.SheetNames.length > 1) {
-        setSheetStatus("Operation Plan sheet was not found. Renovation data was not updated.", true);
+      if (!activeRenovationSheet && !operationPlanSheet && workbook.SheetNames.length > 1) {
+        setSheetStatus(`${activeRenovationSheetName()} sheet was not found. Renovation data was not updated.`, true);
         return;
       }
       setRows(mapWorkbookRows(rows));
@@ -1320,23 +1423,28 @@ async function syncGoogleSheet() {
 
   try {
     setSheetStatus("Syncing Google Sheet...");
+    if (isGoogleSheetUrl(url)) {
+      await syncAllGoogleSheets(url);
+      return;
+    }
+
     const sheetName = activeGoogleSheetName();
-    const sourceRows = isGoogleSheetUrl(url) ? await loadGoogleSheetRows(url, sheetName) : await loadCsvRows(url);
+    const sourceRows = await loadCsvRows(url);
     if (isFitoutDashboardView()) {
       const rows = mapMiniFitoutRows(sourceRows);
       if (!rows.length) throw new Error("No rows found");
       setActiveFitoutRows(rows);
-      setSheetStatus(`Synced ${rows.length} ${sheetName} records from Google Sheet.`);
+      setSheetStatus(`Synced ${rows.length} ${sheetName} records from CSV.`);
     } else if (isAnnualPerformanceView()) {
       const rows = mapAnnualSummaryRows(sourceRows);
       if (!rows.length) throw new Error("No annual summary rows found");
       setAnnualSummaryRows(rows);
-      setSheetStatus(`Synced ${rows.length} annual performance rows from Google Sheet.`);
+      setSheetStatus(`Synced ${rows.length} annual performance rows from CSV.`);
     } else if (isRenovationView()) {
       const rows = mapWorkbookRows(sourceRows);
       if (!rows.length) throw new Error("No rows found");
       setRows(rows);
-      setSheetStatus(`Synced ${rows.length} Operation Plan records from Google Sheet.`);
+      setSheetStatus(`Synced ${rows.length} ${sheetName} records from CSV.`);
     } else {
       setSheetStatus("This Fit-Out view is not connected yet. Renovation data remains locked to Operation Plan.", true);
     }
@@ -1344,6 +1452,88 @@ async function syncGoogleSheet() {
     console.error(error);
     setSheetStatus("Unable to sync. Share the sheet as Anyone with the link: Viewer, then paste the normal Google Sheet URL.", true);
   }
+}
+
+async function syncAllGoogleSheets(url) {
+  const renovationResults = [];
+  for (const option of RENOVATION_SHEET_OPTIONS) {
+    const result = await loadMappedGoogleSheet(url, option.sheetName, mapWorkbookRows);
+    renovationResults.push({ ...result, label: option.label });
+  }
+  const sheetRequests = [
+    ["Annual Performance Summary", mapAnnualSummaryRows],
+    ["MINI FIT-OUT", mapMiniFitoutRows],
+    ["MEGA FIT-OUT", mapMiniFitoutRows]
+  ];
+  const results = [];
+  for (const [sheetName, mapper] of sheetRequests) {
+    results.push(await loadMappedGoogleSheet(url, sheetName, mapper));
+  }
+  const [annualResult, miniResult, megaResult] = results;
+  const syncedResults = [...renovationResults, ...results].filter((result) => result.rows.length);
+
+  if (!syncedResults.length) {
+    throw new Error("No Google Sheet data could be synced");
+  }
+
+  const renovationRows = Object.fromEntries(
+    renovationResults.map((result) => [
+      result.label,
+      result.rows.length ? result.rows : renovationRowsByView[result.label] || []
+    ])
+  );
+  const miniRows = miniResult.rows.length ? miniResult.rows : miniFitoutRows;
+  const megaRows = megaResult.rows.length ? megaResult.rows : megaFitoutRows;
+  const shouldRebuildAnnual = !annualResult.rows.length && (miniResult.rows.length || megaResult.rows.length);
+  const annualRows = annualResult.rows.length
+    ? annualResult.rows
+    : shouldRebuildAnnual
+      ? buildAnnualSummaryRows(miniRows, megaRows)
+      : annualSummaryRows;
+
+  setAllDashboardRows({ renovationRows, annualRows, miniRows, megaRows });
+
+  const syncedText = syncedResults.map((result) => `${result.sheetName} ${result.rows.length}`).join(", ");
+  const fallbackText = shouldRebuildAnnual ? " Annual summary was rebuilt from MINI + MEGA data." : "";
+  setSheetStatus(`Synced dashboards: ${syncedText}.${fallbackText}`);
+}
+
+async function loadMappedGoogleSheet(url, sheetName, mapper) {
+  let lastRows = [];
+  let lastError = null;
+  for (const candidateName of googleSheetNameAliases(sheetName)) {
+    try {
+      const sourceRows = await loadGoogleSheetRows(url, candidateName);
+      const rows = mapper(sourceRows);
+      if (rows.length) return { sheetName, rows };
+      lastRows = rows;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) console.warn(`Unable to sync ${sheetName}`, lastError);
+  return { sheetName, rows: lastRows };
+}
+
+function googleSheetNameAliases(sheetName) {
+  const aliases = {
+    "Operation Plan": ["Operation Plan", "operation plan", "OPERATION PLAN"],
+    "Annual Performance Summary": [
+      "Annual Performance Summary",
+      "annual performance summary",
+      "ANNUAL PERFORMANCE SUMMARY"
+    ],
+    "MINI FIT-OUT": ["MINI FIT-OUT", "mini fit-out", "Mini Fit-Out"],
+    "MEGA FIT-OUT": ["MEGA FIT-OUT", "mega fit-out", "Mega Fit-Out"],
+    "CHODBIZ CHAENGWATTANA": ["CHODBIZ CHAENGWATTANA", "CHODBIZ Chaengwattana"],
+    "CHOD BIZ BANGNA KM.8": ["CHOD BIZ BANGNA KM.8", "CHODBIZ BANGNA KM.8"],
+    "CHODBIZ PUTTHAMONTHON SAI 4": ["CHODBIZ PUTTHAMONTHON SAI 4"],
+    "F&W CHODTHANAWAT 1": ["F&W CHODTHANAWAT 1", "F&WH CHODTHANAWAT 1"],
+    "F&W CHODTHANAWAT 2": ["F&W CHODTHANAWAT 2", "F&WH CHODTHANAWAT 2"],
+    "F&W CHODTHANAWAT 3": ["F&W CHODTHANAWAT 3", "F&WH CHODTHANAWAT 3"],
+    "F&W CHODTHANAWAT 5": ["F&W CHODTHANAWAT 5", "F&WH CHODTHANAWAT 5"]
+  };
+  return aliases[sheetName] || [sheetName];
 }
 
 function isGoogleSheetUrl(url) {
@@ -1460,6 +1650,7 @@ els.file.addEventListener("change", (event) => {
   if (file) readExcel(file);
 });
 els.tabButtons.forEach((button) => button.addEventListener("click", () => setActiveDashboardTab(button)));
+els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
 els.loadSampleBtn.addEventListener("click", () => els.file.click());
 els.syncSheetBtn.addEventListener("click", syncGoogleSheet);
@@ -1471,8 +1662,12 @@ els.refreshBtn.addEventListener("click", () => setRows(rawRows));
 els.exportBtn.addEventListener("click", exportCsv);
 
 setInterval(updateLiveClock, 1000);
+renovationRowsByView = loadStoredRenovationRows() || {};
+if (!renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label]) {
+  renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] = (loadStoredRows() || sampleRows).map((row) => enrichRow(row));
+}
 miniFitoutRows = loadStoredMiniFitoutRows() || deserializeMiniFitoutRows(sampleMiniFitoutRows);
 megaFitoutRows = loadStoredMegaFitoutRows() || deserializeMiniFitoutRows(sampleMegaFitoutRows);
 annualSummaryRows = loadStoredAnnualSummaryRows() || buildAnnualSummaryRows(miniFitoutRows, megaFitoutRows);
-setRows(loadStoredRows() || sampleRows);
+applyActiveRenovationRows();
 
