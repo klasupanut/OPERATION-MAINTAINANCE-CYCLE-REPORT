@@ -185,6 +185,9 @@ const els = {
   googleSheetUrl: document.querySelector("#googleSheetUrl"),
   syncSheetBtn: document.querySelector("#syncSheetBtn"),
   sheetStatus: document.querySelector("#sheetStatus"),
+  mobileGoogleSheetUrl: document.querySelector("#mobileGoogleSheetUrl"),
+  mobileSyncSheetBtn: document.querySelector("#mobileSyncSheetBtn"),
+  mobileSheetStatus: document.querySelector("#mobileSheetStatus"),
   themeToggle: document.querySelector("#themeToggle"),
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
   projectFilter: document.querySelector("#projectFilter"),
@@ -1592,7 +1595,10 @@ function readExcel(file) {
 }
 
 async function syncGoogleSheet() {
-  const url = els.googleSheetUrl.value.trim();
+  const mobileActive = window.matchMedia("(max-width: 760px)").matches && els.mobileGoogleSheetUrl;
+  const url = (mobileActive ? els.mobileGoogleSheetUrl.value : els.googleSheetUrl.value).trim();
+  els.googleSheetUrl.value = url;
+  if (els.mobileGoogleSheetUrl) els.mobileGoogleSheetUrl.value = url;
   if (!url) {
     setSheetStatus("Paste a Google Sheet URL first.", true);
     return;
@@ -1780,6 +1786,10 @@ function googleVizToRows(payload) {
 function setSheetStatus(message, isError = false) {
   els.sheetStatus.textContent = message;
   els.sheetStatus.style.color = isError ? "#ffd0ca" : "#c8d4d8";
+  if (els.mobileSheetStatus) {
+    els.mobileSheetStatus.textContent = message;
+    els.mobileSheetStatus.style.color = isError ? "#ffd0ca" : "#adc5cf";
+  }
 }
 
 function parseCsv(text) {
@@ -1832,6 +1842,13 @@ els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
 els.loadSampleBtn.addEventListener("click", () => els.file.click());
 els.syncSheetBtn.addEventListener("click", syncGoogleSheet);
+els.mobileSyncSheetBtn?.addEventListener("click", syncGoogleSheet);
+els.googleSheetUrl.addEventListener("input", () => {
+  if (els.mobileGoogleSheetUrl) els.mobileGoogleSheetUrl.value = els.googleSheetUrl.value;
+});
+els.mobileGoogleSheetUrl?.addEventListener("input", () => {
+  els.googleSheetUrl.value = els.mobileGoogleSheetUrl.value;
+});
 els.clearFilterBtn.addEventListener("click", clearRenovationFilters);
 els.projectFilter.addEventListener("change", applyFilters);
 els.categoryFilter.addEventListener("change", applyFilters);

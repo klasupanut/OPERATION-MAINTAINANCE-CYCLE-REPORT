@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Warehouse Operation Dashboard</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260507-1902" />
+    <link rel="stylesheet" href="./styles.css?v=20260507-1932" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   </head>
@@ -107,6 +107,16 @@
           </label>
           <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
           <button id="loadSampleBtn" class="secondary-button" type="button">Click To Upload</button>
+        </section>
+
+        <section class="panel mobile-sheet-panel" aria-label="Mobile Google Sheet sync">
+          <h2>Google Sheet URL</h2>
+          <label>
+            Sheet Link
+            <input id="mobileGoogleSheetUrl" type="url" placeholder="Paste public Google Sheet URL" />
+          </label>
+          <button id="mobileSyncSheetBtn" class="secondary-button" type="button">Sync Dashboard</button>
+          <small id="mobileSheetStatus">Paste a published Google Sheet link.</small>
         </section>
 
         <section class="panel compact">
@@ -354,6 +364,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=20260507-1916"></script>
+    <script src="./app.js?v=20260507-1932"></script>
   </body>
 </html>

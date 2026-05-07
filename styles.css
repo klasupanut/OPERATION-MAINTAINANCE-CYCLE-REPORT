@@ -376,6 +376,18 @@ button:hover {
   line-height: 1.45;
 }
 
+.mobile-sheet-panel {
+  display: none;
+}
+
+.mobile-sheet-panel small {
+  display: block;
+  margin-top: 10px;
+  color: #adc5cf;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .workspace {
   min-width: 0;
   padding: 28px;
@@ -1098,6 +1110,10 @@ body.light-theme .sidebar .clear-filter-button {
   color: #d9f7ff;
 }
 
+body.light-theme .sidebar .mobile-sheet-panel small {
+  color: #adc5cf;
+}
+
 body.light-theme .metric,
 body.light-theme .chart-panel,
 body.light-theme .table-section,
@@ -1286,6 +1302,18 @@ body.light-theme .forecast-row div {
 
   .topbar-actions {
     flex-direction: column;
+  }
+
+  .upload-panel {
+    display: none;
+  }
+
+  .mobile-sheet-panel {
+    display: block;
+  }
+
+  .topbar-actions {
+    display: none;
   }
 
   .topbar-sheet-import {
