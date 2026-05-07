@@ -203,6 +203,7 @@ const els = {
   midBudget: document.querySelector("#midBudget"),
   longBudget: document.querySelector("#longBudget"),
   annualForecast: document.querySelector("#annualForecast"),
+  statusLegend: document.querySelector("#statusLegend"),
   dashboardTitle: document.querySelector("#dashboardTitle"),
   tabButtons: document.querySelectorAll(".tab-button"),
   renovationSelector: document.querySelector("#renovationSelector"),
@@ -522,7 +523,7 @@ function statusLabel(status) {
     dueSoon: "Due Soon",
     planned: "Planned",
     done: "Completed"
-  }[status];
+  }[status] || "Unidentified";
 }
 
 function daysLabel(daysLeft) {
@@ -794,9 +795,14 @@ function renderCharts() {
 
   const categories = [...new Set(filteredRows.map((row) => row.category))];
   const categoryData = categories.map((category) => filteredRows.filter((row) => row.category === category).length);
-  const statusKeys = ["overdue", "dueSoon", "planned", "done"];
-  const statusColors = ["#bd3f32", "#d69028", "#1f7a59", "#7897b3"];
+  const statusItems = [
+    { key: "overdue", label: "Overdue", color: "#bd3f32" },
+    { key: "dueSoon", label: "Due Soon", color: "#d69028" },
+    { key: "planned", label: "Planned", color: "#1f7a59" },
+    { key: "done", label: "Completed", color: "#7897b3" }
+  ];
   const statusCounts = countBy(filteredRows, "status");
+  const statusColors = statusItems.map((item) => item.color);
 
   categoryChart?.destroy();
   statusChart?.destroy();
@@ -823,10 +829,10 @@ function renderCharts() {
   statusChart = new Chart(document.querySelector("#statusChart"), {
     type: "doughnut",
     data: {
-      labels: statusKeys.map(statusLabel),
+      labels: statusItems.map((item) => item.label),
       datasets: [
         {
-          data: statusKeys.map((key) => statusCounts[key] || 0),
+          data: statusItems.map((item) => statusCounts[item.key] || 0),
           backgroundColor: createHoverAwareIndexedColors(statusColors, "status"),
           borderWidth: 0
         }
@@ -837,22 +843,28 @@ function renderCharts() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: "bottom",
-          labels: {
-            generateLabels(chart) {
-              return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => ({
-                ...label,
-                fillStyle: statusColors[label.index],
-                strokeStyle: statusColors[label.index]
-              }));
-            }
-          }
+          display: false
         }
       },
       cutout: "62%",
       onHover: handleHoverFade
     }
   });
+  renderStatusLegend(statusItems, statusCounts);
+}
+
+function renderStatusLegend(statusItems, statusCounts) {
+  els.statusLegend.innerHTML = statusItems
+    .map(
+      (item) => `
+        <span class="status-legend-item">
+          <i style="background:${item.color}"></i>
+          <b>${escapeHtml(item.label)}</b>
+          <em>${statusCounts[item.key] || 0}</em>
+        </span>
+      `
+    )
+    .join("");
 }
 
 function activeFitoutRows() {
@@ -1557,7 +1569,7 @@ async function syncAllGoogleSheets(url) {
   const renovationRows = Object.fromEntries(
     renovationResults.map((result) => [
       result.label,
-      result.rows.length ? result.rows : renovationRowsByView[result.label] || []
+      result.rows
     ])
   );
   const miniRows = miniResult.rows.length ? miniResult.rows : miniFitoutRows;
@@ -1571,9 +1583,7 @@ async function syncAllGoogleSheets(url) {
 
   setAllDashboardRows({ renovationRows, annualRows, miniRows, megaRows });
 
-  const syncedText = syncedResults.map((result) => `${result.sheetName} ${result.rows.length}`).join(", ");
-  const fallbackText = shouldRebuildAnnual ? " Annual summary was rebuilt from MINI + MEGA data." : "";
-  setSheetStatus(`Synced dashboards: ${syncedText}.${fallbackText}`);
+  setSheetStatus("All dashboards synced.");
 }
 
 async function loadMappedGoogleSheet(url, sheetName, mapper) {
@@ -1603,13 +1613,13 @@ function googleSheetNameAliases(sheetName) {
     ],
     "MINI FIT-OUT": ["MINI FIT-OUT", "mini fit-out", "Mini Fit-Out"],
     "MEGA FIT-OUT": ["MEGA FIT-OUT", "mega fit-out", "Mega Fit-Out"],
-    "CHODBIZ CHAENGWATTANA": ["CHODBIZ CHAENGWATTANA", "CHODBIZ Chaengwattana"],
-    "CHOD BIZ BANGNA KM.8": ["CHOD BIZ BANGNA KM.8", "CHODBIZ BANGNA KM.8"],
+    "CHODBIZ CHAENGWATTANA": ["CHODBIZ CHAENGWATTANA"],
+    "CHOD BIZ BANGNA KM.8": ["CHOD BIZ BANGNA KM.8"],
     "CHODBIZ PUTTHAMONTHON SAI 4": ["CHODBIZ PUTTHAMONTHON SAI 4"],
-    "F&W CHODTHANAWAT 1": ["F&W CHODTHANAWAT 1", "F&WH CHODTHANAWAT 1"],
-    "F&W CHODTHANAWAT 2": ["F&W CHODTHANAWAT 2", "F&WH CHODTHANAWAT 2"],
-    "F&W CHODTHANAWAT 3": ["F&W CHODTHANAWAT 3", "F&WH CHODTHANAWAT 3"],
-    "F&W CHODTHANAWAT 5": ["F&W CHODTHANAWAT 5", "F&WH CHODTHANAWAT 5"]
+    "F&W CHODTHANAWAT 1": ["F&W CHODTHANAWAT 1"],
+    "F&W CHODTHANAWAT 2": ["F&W CHODTHANAWAT 2"],
+    "F&W CHODTHANAWAT 3": ["F&W CHODTHANAWAT 3"],
+    "F&W CHODTHANAWAT 5": ["F&W CHODTHANAWAT 5"]
   };
   return aliases[sheetName] || [sheetName];
 }

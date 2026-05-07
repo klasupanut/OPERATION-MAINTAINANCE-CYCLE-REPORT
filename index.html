@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Warehouse Operation Dashboard</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260507-1510" />
+    <link rel="stylesheet" href="./styles.css?v=20260507-1556" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   </head>
@@ -21,24 +21,6 @@
             <h1>Warehouse Dashboard</h1>
           </div>
         </div>
-
-        <section class="panel upload-panel">
-          <label class="file-drop" for="excelFile">
-            <span class="file-icon">+</span>
-            <strong>Import Excel</strong>
-            <small>.xlsx, .xls or .csv</small>
-          </label>
-          <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
-          <button id="loadSampleBtn" class="secondary-button" type="button">Click To Upload</button>
-          <div class="sheet-import">
-            <label>
-              Google Sheet URL
-              <input id="googleSheetUrl" type="url" placeholder="Paste public Google Sheet URL" />
-            </label>
-            <button id="syncSheetBtn" class="secondary-button" type="button">Sync All Dashboards</button>
-            <small id="sheetStatus">Paste one public Google Sheet URL to update every dashboard.</small>
-          </div>
-        </section>
 
         <nav class="dashboard-tabs" aria-label="Dashboard tabs">
           <button class="tab-button active" type="button" data-tab="renovation" data-dashboard-title="Warehouse Asset Renovation Cycle (overall)">
@@ -114,6 +96,16 @@
           </label>
         </section>
 
+        <section class="panel upload-panel">
+          <label class="file-drop" for="excelFile">
+            <span class="file-icon">+</span>
+            <strong>Import Excel</strong>
+            <small>.xlsx, .xls or .csv</small>
+          </label>
+          <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
+          <button id="loadSampleBtn" class="secondary-button" type="button">Click To Upload</button>
+        </section>
+
         <section class="panel compact">
           <h2>Excel Column Format</h2>
           <p>
@@ -125,14 +117,26 @@
 
       <section class="workspace">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">Real-time Snapshot</p>
+          <div class="topbar-title">
+            <div class="snapshot-heading">
+              <p class="eyebrow">Real-time Snapshot</p>
+              <div class="live-chip">
+                <span></span>
+                <strong>Live</strong>
+                <small id="lastUpdated">No data yet</small>
+              </div>
+            </div>
             <h2 id="dashboardTitle">Warehouse Asset Renovation Cycle (overall)</h2>
           </div>
-          <div class="live-chip">
-            <span></span>
-            <strong>Live</strong>
-            <small id="lastUpdated">No data yet</small>
+          <div class="topbar-actions">
+            <div class="sheet-import topbar-sheet-import">
+              <label>
+                Google Sheet URL
+                <input id="googleSheetUrl" type="url" placeholder="Paste public Google Sheet URL" />
+              </label>
+              <button id="syncSheetBtn" class="secondary-button" type="button">Sync All Dashboards</button>
+              <small id="sheetStatus">Paste one public Google Sheet URL to update every dashboard.</small>
+            </div>
           </div>
         </header>
 
@@ -297,6 +301,7 @@
               <small>Updates with filters</small>
             </div>
             <canvas id="statusChart" height="150"></canvas>
+            <div id="statusLegend" class="status-legend" aria-label="Status mix legend"></div>
           </article>
         </section>
 
@@ -346,6 +351,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=20260507-1452"></script>
+    <script src="./app.js?v=20260507-1618"></script>
   </body>
 </html>
