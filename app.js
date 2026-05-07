@@ -790,6 +790,33 @@ function formatCompactBudget(value) {
   return formatBudget(value);
 }
 
+function formatMobileChartValue(value) {
+  const sign = value < 0 ? "-" : "";
+  const amount = Math.abs(value);
+  if (amount >= 1000000) return `${sign}${(amount / 1000000).toFixed(amount >= 10000000 ? 0 : 1)}M`;
+  if (amount >= 1000) return `${sign}${Math.round(amount / 1000)}K`;
+  return `${sign}${Math.round(amount)}`;
+}
+
+function isMobileChartLayout() {
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function fitoutLegendLabelOptions(generateLabels) {
+  const mobile = isMobileChartLayout();
+  return {
+    color: chartTextColor(),
+    boxWidth: mobile ? 9 : 14,
+    boxHeight: mobile ? 9 : 12,
+    padding: mobile ? 8 : 12,
+    font: {
+      size: mobile ? 10 : 12,
+      weight: "700"
+    },
+    generateLabels
+  };
+}
+
 function sortedRegisterRows() {
   return [...filteredRows].sort(compareRegisterRows);
 }
@@ -1023,25 +1050,28 @@ function renderFitoutDashboard() {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 26
+          top: isMobileChartLayout() ? 18 : 26
         }
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: chartTextColor() }
+          ticks: { color: chartTextColor(), font: { size: isMobileChartLayout() ? 10 : 12 } }
         },
         y: {
           grid: { color: chartGridColor() },
-          ticks: { color: chartTextColor(), callback: (value) => formatCompactBudget(value) }
+          ticks: {
+            color: chartTextColor(),
+            font: { size: isMobileChartLayout() ? 10 : 12 },
+            callback: (value) => (isMobileChartLayout() ? formatMobileChartValue(value) : formatCompactBudget(value))
+          }
         }
       },
       plugins: {
         legend: {
           position: "bottom",
-          labels: {
-            color: chartTextColor(),
-            generateLabels(chart) {
+          labels: fitoutLegendLabelOptions(
+            (chart) => {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
                 return {
@@ -1052,7 +1082,7 @@ function renderFitoutDashboard() {
                 };
               });
             }
-          }
+          )
         }
       },
       onHover: (event, activeElements, chart) => {
@@ -1131,25 +1161,28 @@ function renderAnnualPerformanceDashboard() {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 26
+          top: isMobileChartLayout() ? 18 : 26
         }
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: chartTextColor() }
+          ticks: { color: chartTextColor(), font: { size: isMobileChartLayout() ? 10 : 12 } }
         },
         y: {
           grid: { color: chartGridColor() },
-          ticks: { color: chartTextColor(), callback: (value) => formatCompactBudget(value) }
+          ticks: {
+            color: chartTextColor(),
+            font: { size: isMobileChartLayout() ? 10 : 12 },
+            callback: (value) => (isMobileChartLayout() ? formatMobileChartValue(value) : formatCompactBudget(value))
+          }
         }
       },
       plugins: {
         legend: {
           position: "bottom",
-          labels: {
-            color: chartTextColor(),
-            generateLabels(chart) {
+          labels: fitoutLegendLabelOptions(
+            (chart) => {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
                 const dataset = chart.data.datasets[label.datasetIndex];
                 return {
@@ -1160,7 +1193,7 @@ function renderAnnualPerformanceDashboard() {
                 };
               });
             }
-          }
+          )
         }
       },
       onHover: handleHoverFade
@@ -1224,11 +1257,12 @@ const barValueLabelPlugin = {
   id: "barValueLabelPlugin",
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
+    const mobile = isMobileChartLayout();
     ctx.save();
-    ctx.font = "700 11px Segoe UI, Arial, sans-serif";
+    ctx.font = `700 ${mobile ? 9 : 11}px Segoe UI, Arial, sans-serif`;
     ctx.fillStyle = chartTextColor();
     ctx.shadowColor = document.body.classList.contains("light-theme") ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.45)";
-    ctx.shadowBlur = document.body.classList.contains("light-theme") ? 2 : 4;
+    ctx.shadowBlur = mobile ? 1 : document.body.classList.contains("light-theme") ? 2 : 4;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
 
@@ -1238,7 +1272,7 @@ const barValueLabelPlugin = {
         const value = Number(dataset.data[index] || 0);
         if (!value) return;
         const position = bar.tooltipPosition();
-        ctx.fillText(formatCompactBudget(value), position.x, position.y - 5);
+        ctx.fillText(mobile ? formatMobileChartValue(value) : formatCompactBudget(value), position.x, position.y - (mobile ? 3 : 5));
       });
     });
 

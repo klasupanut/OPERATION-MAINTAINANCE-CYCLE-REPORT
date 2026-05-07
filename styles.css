@@ -1371,6 +1371,12 @@ body.light-theme .forecast-row div {
     max-height: 250px;
   }
 
+  #fitoutQuarterChart,
+  #annualPerformanceChart {
+    height: 280px !important;
+    max-height: 280px;
+  }
+
   .status-legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 8px;
@@ -1490,6 +1496,12 @@ body.light-theme .forecast-row div {
   #categoryChart {
     height: 260px !important;
     max-height: 260px;
+  }
+
+  #fitoutQuarterChart,
+  #annualPerformanceChart {
+    height: 300px !important;
+    max-height: 300px;
   }
 
   .status-legend {
