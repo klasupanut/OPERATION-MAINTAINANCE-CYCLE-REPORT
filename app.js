@@ -183,6 +183,7 @@ const els = {
   googleSheetUrl: document.querySelector("#googleSheetUrl"),
   syncSheetBtn: document.querySelector("#syncSheetBtn"),
   sheetStatus: document.querySelector("#sheetStatus"),
+  clearFilterBtn: document.querySelector("#clearFilterBtn"),
   projectFilter: document.querySelector("#projectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   statusFilter: document.querySelector("#statusFilter"),
@@ -554,6 +555,12 @@ function resetRenovationFilters() {
   els.searchBox.value = "";
 }
 
+function clearRenovationFilters() {
+  resetRenovationFilters();
+  updateCategoryOptions();
+  applyFilters();
+}
+
 function render() {
   renderDashboardMode();
   renderKpis();
@@ -786,6 +793,7 @@ function renderCharts() {
   const categories = [...new Set(filteredRows.map((row) => row.category))];
   const categoryData = categories.map((category) => filteredRows.filter((row) => row.category === category).length);
   const statusKeys = ["overdue", "dueSoon", "planned", "done"];
+  const statusColors = ["#bd3f32", "#d69028", "#1f7a59", "#7897b3"];
   const statusCounts = countBy(filteredRows, "status");
 
   categoryChart?.destroy();
@@ -795,9 +803,19 @@ function renderCharts() {
     type: "bar",
     data: {
       labels: categories,
-      datasets: [{ label: "Records", data: categoryData, backgroundColor: "#2f6f9f", borderRadius: 6 }]
+      datasets: [
+        {
+          label: "Records",
+          data: categoryData,
+          backgroundColor: createHoverAwareColor("#2f6f9f", "discipline"),
+          borderRadius: 6
+        }
+      ]
     },
-    options: chartOptions("y")
+    options: {
+      ...chartOptions("y"),
+      onHover: handleHoverFade
+    }
   });
 
   statusChart = new Chart(document.querySelector("#statusChart"), {
@@ -807,12 +825,31 @@ function renderCharts() {
       datasets: [
         {
           data: statusKeys.map((key) => statusCounts[key] || 0),
-          backgroundColor: ["#bd3f32", "#d69028", "#1f7a59", "#7897b3"],
+          backgroundColor: createHoverAwareIndexedColors(statusColors, "status"),
           borderWidth: 0
         }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, cutout: "62%" }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            generateLabels(chart) {
+              return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => ({
+                ...label,
+                fillStyle: statusColors[label.index],
+                strokeStyle: statusColors[label.index]
+              }));
+            }
+          }
+        }
+      },
+      cutout: "62%",
+      onHover: handleHoverFade
+    }
   });
 }
 
@@ -944,9 +981,7 @@ function renderFitoutDashboard() {
         }
       },
       onHover: (event, activeElements, chart) => {
-        chart.$activeBar = activeElements[0] || null;
-        if (!activeElements.length) chart.$barFadeState = {};
-        chart.update();
+        handleHoverFade(event, activeElements, chart);
       }
     },
     plugins: [barValueLabelPlugin]
@@ -996,19 +1031,22 @@ function renderAnnualPerformanceDashboard() {
         {
           label: "Actual CapEx",
           data: rows.map((row) => row.actualCapex),
-          backgroundColor: "#2f6f9f",
+          backgroundColor: createHoverAwareColor("#2f6f9f", "annual-capex"),
+          legendColor: "#2f6f9f",
           borderRadius: 6
         },
         {
           label: "Realized Revenue",
           data: rows.map((row) => row.realizedRevenue),
-          backgroundColor: "#1f7a59",
+          backgroundColor: createHoverAwareColor("#1f7a59", "annual-revenue"),
+          legendColor: "#1f7a59",
           borderRadius: 6
         },
         {
           label: "Net Operating Profit",
           data: rows.map((row) => row.netOperatingProfit),
-          backgroundColor: "#d69028",
+          backgroundColor: createHoverAwareColor("#d69028", "annual-profit"),
+          legendColor: "#d69028",
           borderRadius: 6
         }
       ]
@@ -1021,8 +1059,23 @@ function renderAnnualPerformanceDashboard() {
         y: { grid: { color: "#edf1f3" }, ticks: { callback: (value) => formatCompactBudget(value) } }
       },
       plugins: {
-        legend: { position: "bottom" }
-      }
+        legend: {
+          position: "bottom",
+          labels: {
+            generateLabels(chart) {
+              return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
+                const dataset = chart.data.datasets[label.datasetIndex];
+                return {
+                  ...label,
+                  fillStyle: dataset.legendColor,
+                  strokeStyle: dataset.legendColor
+                };
+              });
+            }
+          }
+        }
+      },
+      onHover: handleHoverFade
     }
   });
 }
@@ -1116,6 +1169,29 @@ function createHoverAwareColor(color, key) {
     context.chart.$barFadeState[stateKey] = Math.abs(nextOpacity - targetOpacity) < 0.02 ? targetOpacity : nextOpacity;
     return hexToRgba(color, context.chart.$barFadeState[stateKey]);
   };
+}
+
+function createHoverAwareIndexedColors(colors, keyPrefix) {
+  return (context) => {
+    const color = colors[context.dataIndex] || colors[0];
+    if (context.dataIndex === undefined) return color;
+    const active = context.chart.$activeBar;
+    if (!active) return color;
+    const isActive = active.datasetIndex === context.datasetIndex && active.index === context.dataIndex;
+    const targetOpacity = isActive ? 1 : 0.2;
+    context.chart.$barFadeState ||= {};
+    const stateKey = `${keyPrefix}-${context.dataIndex}`;
+    const currentOpacity = context.chart.$barFadeState[stateKey] ?? 1;
+    const nextOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.35;
+    context.chart.$barFadeState[stateKey] = Math.abs(nextOpacity - targetOpacity) < 0.02 ? targetOpacity : nextOpacity;
+    return hexToRgba(color, context.chart.$barFadeState[stateKey]);
+  };
+}
+
+function handleHoverFade(event, activeElements, chart) {
+  chart.$activeBar = activeElements[0] || null;
+  if (!activeElements.length) chart.$barFadeState = {};
+  chart.update();
 }
 
 function hexToRgba(hex, opacity) {
@@ -1654,6 +1730,7 @@ els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
 els.loadSampleBtn.addEventListener("click", () => els.file.click());
 els.syncSheetBtn.addEventListener("click", syncGoogleSheet);
+els.clearFilterBtn.addEventListener("click", clearRenovationFilters);
 els.projectFilter.addEventListener("change", applyFilters);
 els.categoryFilter.addEventListener("change", applyFilters);
 els.statusFilter.addEventListener("change", applyFilters);
