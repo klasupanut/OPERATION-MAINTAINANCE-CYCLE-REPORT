@@ -190,6 +190,7 @@ const els = {
   mobileSheetStatus: document.querySelector("#mobileSheetStatus"),
   themeToggle: document.querySelector("#themeToggle"),
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
+  filterPanel: document.querySelector("#clearFilterBtn")?.closest(".panel"),
   projectFilter: document.querySelector("#projectFilter"),
   registerProjectFilter: document.querySelector("#registerProjectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
@@ -345,6 +346,12 @@ function mapAnnualSummaryRows(rows) {
     actualCapex: findColumn(first, ["actual capex", "actual capital expenditure", "capex"]),
     realizedRevenue: findColumn(first, ["realized revenue", "revenue"]),
     netOperatingProfit: findColumn(first, ["net operating profit", "net profit", "profit"]),
+    miniActualCapex: findColumn(first, ["mini actual capex", "mini actual capital expenditure", "mini capex"]),
+    megaActualCapex: findColumn(first, ["mega actual capex", "mega actual capital expenditure", "mega capex"]),
+    miniRevenue: findColumn(first, ["mini realized revenue", "mini revenue"]),
+    megaRevenue: findColumn(first, ["mega realized revenue", "mega revenue"]),
+    miniProfit: findColumn(first, ["mini net operating profit", "mini net profit", "mini profit"]),
+    megaProfit: findColumn(first, ["mega net operating profit", "mega net profit", "mega profit"]),
     profitMargin: findColumn(first, ["profit margin", "margin"]),
     averageRevenue: findColumn(first, ["avg revenue / job", "average revenue", "avg revenue"])
   };
@@ -352,6 +359,12 @@ function mapAnnualSummaryRows(rows) {
   return dataRows
     .map((row) => {
       const year = Number(cleanValue(row[map.year]));
+      const miniActualCapex = parseBudget(row[map.miniActualCapex]);
+      const megaActualCapex = parseBudget(row[map.megaActualCapex]);
+      const miniRevenue = parseBudget(row[map.miniRevenue]);
+      const megaRevenue = parseBudget(row[map.megaRevenue]);
+      const miniProfit = parseBudget(row[map.miniProfit]);
+      const megaProfit = parseBudget(row[map.megaProfit]);
       const realizedRevenue = parseBudget(row[map.realizedRevenue]);
       const netOperatingProfit = parseBudget(row[map.netOperatingProfit]);
       return {
@@ -362,6 +375,12 @@ function mapAnnualSummaryRows(rows) {
         actualCapex: parseBudget(row[map.actualCapex]),
         realizedRevenue,
         netOperatingProfit,
+        miniActualCapex,
+        megaActualCapex,
+        miniRevenue,
+        megaRevenue,
+        miniProfit,
+        megaProfit,
         profitMargin: parsePercent(row[map.profitMargin], realizedRevenue ? netOperatingProfit / realizedRevenue : 0),
         averageRevenue: parseBudget(row[map.averageRevenue])
       };
@@ -474,6 +493,12 @@ function serializeAnnualSummaryRows(rows) {
     actualCapex: row.actualCapex,
     realizedRevenue: row.realizedRevenue,
     netOperatingProfit: row.netOperatingProfit,
+    miniActualCapex: row.miniActualCapex,
+    megaActualCapex: row.megaActualCapex,
+    miniRevenue: row.miniRevenue,
+    megaRevenue: row.megaRevenue,
+    miniProfit: row.miniProfit,
+    megaProfit: row.megaProfit,
     profitMargin: row.profitMargin,
     averageRevenue: row.averageRevenue
   }));
@@ -503,6 +528,12 @@ function deserializeAnnualSummaryRows(rows) {
     actualCapex: parseBudget(row.actualCapex),
     realizedRevenue: parseBudget(row.realizedRevenue),
     netOperatingProfit: parseBudget(row.netOperatingProfit),
+    miniActualCapex: parseBudget(row.miniActualCapex),
+    megaActualCapex: parseBudget(row.megaActualCapex),
+    miniRevenue: parseBudget(row.miniRevenue),
+    megaRevenue: parseBudget(row.megaRevenue),
+    miniProfit: parseBudget(row.miniProfit),
+    megaProfit: parseBudget(row.megaProfit),
     profitMargin: parsePercent(row.profitMargin),
     averageRevenue: parseBudget(row.averageRevenue)
   }));
@@ -634,7 +665,7 @@ function activeTabName() {
 }
 
 function activeRenovationLabel() {
-  return els.renovationType?.value || RENOVATION_SHEET_OPTIONS[0].label;
+  return RENOVATION_SHEET_OPTIONS[0].label;
 }
 
 function activeRenovationSheetName() {
@@ -667,8 +698,31 @@ function renderDashboardMode() {
   els.renovationViews.forEach((section) => {
     section.hidden = showFitoutPage;
   });
+  if (els.filterPanel) els.filterPanel.hidden = showFitoutPage;
   els.fitoutDashboard.hidden = !showFitoutDashboard;
   els.annualDashboard.hidden = !showAnnualDashboard;
+  updateDashboardTitle();
+}
+
+function updateDashboardTitle() {
+  if (activeTabName() === "fitout") {
+    els.dashboardTitle.textContent = els.fitoutType.value;
+    return;
+  }
+  const project = els.projectFilter.value;
+  els.dashboardTitle.textContent = project === "all" ? OVERALL_RENOVATION_LABEL : formatProjectTitle(project);
+}
+
+function formatProjectTitle(project) {
+  return String(project || "")
+    .replace(/^F&WH\b/i, "Factory & Warehouse")
+    .replace(/^CHODBIZ\b/i, "Chodbiz")
+    .split(/(\s+)/)
+    .map((part) => {
+      if (!part.trim() || part === "&") return part;
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join("");
 }
 
 function updateLiveClock() {
@@ -806,15 +860,19 @@ function isMobileChartLayout() {
   return window.matchMedia("(max-width: 760px)").matches;
 }
 
-function fitoutLegendLabelOptions(generateLabels) {
+function fitoutLegendLabelOptions(generateLabels, options = {}) {
   const mobile = isMobileChartLayout();
+  const compact = options.compact || false;
+  const spread = options.spread || false;
   return {
     color: chartTextColor(),
-    boxWidth: mobile ? 9 : 14,
-    boxHeight: mobile ? 9 : 12,
-    padding: mobile ? 8 : 12,
+    boxWidth: compact ? (mobile ? 8 : 10) : mobile ? 9 : 14,
+    boxHeight: compact ? (mobile ? 8 : 10) : mobile ? 9 : 12,
+    padding: spread ? (mobile ? 13 : 30) : compact ? (mobile ? 9 : 18) : mobile ? 8 : 12,
+    usePointStyle: compact || spread,
+    pointStyle: compact || spread ? "rectRounded" : undefined,
     font: {
-      size: mobile ? 10 : 12,
+      size: spread ? (mobile ? 9 : 11) : compact ? (mobile ? 9 : 11) : mobile ? 10 : 12,
       weight: "700"
     },
     generateLabels
@@ -958,18 +1016,58 @@ function buildAnnualSummaryRows(miniRows = miniFitoutRows, megaRows = megaFitout
     const miniYearRows = miniRows.filter((row) => row.finishDate?.getFullYear() === year);
     const megaYearRows = megaRows.filter((row) => row.finishDate?.getFullYear() === year);
     const combinedRows = [...miniYearRows, ...megaYearRows];
-    const realizedRevenue = combinedRows.reduce((sum, row) => sum + row.realizedRevenue, 0);
-    const netOperatingProfit = combinedRows.reduce((sum, row) => sum + row.netOperatingProfit, 0);
+    const miniActualCapex = miniYearRows.reduce((sum, row) => sum + row.actualCapex, 0);
+    const megaActualCapex = megaYearRows.reduce((sum, row) => sum + row.actualCapex, 0);
+    const miniRevenue = miniYearRows.reduce((sum, row) => sum + row.realizedRevenue, 0);
+    const megaRevenue = megaYearRows.reduce((sum, row) => sum + row.realizedRevenue, 0);
+    const miniProfit = miniYearRows.reduce((sum, row) => sum + row.netOperatingProfit, 0);
+    const megaProfit = megaYearRows.reduce((sum, row) => sum + row.netOperatingProfit, 0);
+    const realizedRevenue = miniRevenue + megaRevenue;
+    const netOperatingProfit = miniProfit + megaProfit;
     return {
       year,
       totalJobs: combinedRows.length,
       miniJobs: miniYearRows.length,
       megaJobs: megaYearRows.length,
-      actualCapex: combinedRows.reduce((sum, row) => sum + row.actualCapex, 0),
+      actualCapex: miniActualCapex + megaActualCapex,
       realizedRevenue,
       netOperatingProfit,
+      miniActualCapex,
+      megaActualCapex,
+      miniRevenue,
+      megaRevenue,
+      miniProfit,
+      megaProfit,
       profitMargin: realizedRevenue ? netOperatingProfit / realizedRevenue : 0,
       averageRevenue: combinedRows.length ? realizedRevenue / combinedRows.length : 0
+    };
+  });
+}
+
+function hasAnnualBreakdown(row) {
+  return [
+    row.miniActualCapex,
+    row.megaActualCapex,
+    row.miniRevenue,
+    row.megaRevenue,
+    row.miniProfit,
+    row.megaProfit
+  ].some((value) => Number(value));
+}
+
+function annualChartRows(rows) {
+  const rebuiltRows = buildAnnualSummaryRows();
+  if (rebuiltRows.some(hasAnnualBreakdown)) return rebuiltRows;
+  return rows.map((row) => {
+    if (hasAnnualBreakdown(row)) return row;
+    return {
+      ...row,
+      miniActualCapex: row.actualCapex,
+      megaActualCapex: 0,
+      miniRevenue: row.realizedRevenue,
+      megaRevenue: 0,
+      miniProfit: row.netOperatingProfit,
+      megaProfit: 0
     };
   });
 }
@@ -1132,30 +1230,60 @@ function renderAnnualPerformanceDashboard() {
 
   if (!window.Chart) return;
   annualPerformanceChart?.destroy();
+  const chartRows = annualChartRows(rows);
+  const miniPalette = fitoutPalettes["MINI FIT-OUT"];
+  const megaPalette = fitoutPalettes["MEGA FIT-OUT"];
   annualPerformanceChart = new Chart(document.querySelector("#annualPerformanceChart"), {
     type: "bar",
     data: {
-      labels: rows.map((row) => row.year),
+      labels: chartRows.map((row) => row.year),
       datasets: [
         {
-          label: "Actual CapEx",
-          data: rows.map((row) => row.actualCapex),
-          backgroundColor: createHoverAwareColor("#35d8ff", "annual-capex"),
-          legendColor: "#35d8ff",
+          label: "Mini CapEx",
+          data: chartRows.map((row) => row.miniActualCapex),
+          backgroundColor: createHoverAwareColor(miniPalette.capex, "annual-mini-capex"),
+          legendColor: miniPalette.capex,
+          stack: "capex",
           borderRadius: 6
         },
         {
-          label: "Realized Revenue",
-          data: rows.map((row) => row.realizedRevenue),
-          backgroundColor: createHoverAwareColor("#20e3a2", "annual-revenue"),
-          legendColor: "#20e3a2",
+          label: "Mega CapEx",
+          data: chartRows.map((row) => row.megaActualCapex),
+          backgroundColor: createHoverAwareColor(megaPalette.capex, "annual-mega-capex"),
+          legendColor: megaPalette.capex,
+          stack: "capex",
           borderRadius: 6
         },
         {
-          label: "Net Operating Profit",
-          data: rows.map((row) => row.netOperatingProfit),
-          backgroundColor: createHoverAwareColor("#ffd166", "annual-profit"),
-          legendColor: "#ffd166",
+          label: "Mini Revenue",
+          data: chartRows.map((row) => row.miniRevenue),
+          backgroundColor: createHoverAwareColor(miniPalette.revenue, "annual-mini-revenue"),
+          legendColor: miniPalette.revenue,
+          stack: "revenue",
+          borderRadius: 6
+        },
+        {
+          label: "Mega Revenue",
+          data: chartRows.map((row) => row.megaRevenue),
+          backgroundColor: createHoverAwareColor(megaPalette.revenue, "annual-mega-revenue"),
+          legendColor: megaPalette.revenue,
+          stack: "revenue",
+          borderRadius: 6
+        },
+        {
+          label: "Mini Profit",
+          data: chartRows.map((row) => row.miniProfit),
+          backgroundColor: createHoverAwareColor(miniPalette.profit, "annual-mini-profit"),
+          legendColor: miniPalette.profit,
+          stack: "profit",
+          borderRadius: 6
+        },
+        {
+          label: "Mega Profit",
+          data: chartRows.map((row) => row.megaProfit),
+          backgroundColor: createHoverAwareColor(megaPalette.profit, "annual-mega-profit"),
+          legendColor: megaPalette.profit,
+          stack: "profit",
           borderRadius: 6
         }
       ]
@@ -1171,10 +1299,12 @@ function renderAnnualPerformanceDashboard() {
       scales: {
         x: {
           grid: { display: false },
+          stacked: true,
           ticks: { color: chartTextColor(), font: { size: isMobileChartLayout() ? 10 : 12 } }
         },
         y: {
           grid: { color: chartGridColor() },
+          stacked: true,
           ticks: {
             color: chartTextColor(),
             font: { size: isMobileChartLayout() ? 10 : 12 },
@@ -1185,6 +1315,7 @@ function renderAnnualPerformanceDashboard() {
       plugins: {
         legend: {
           position: "bottom",
+          align: "center",
           labels: fitoutLegendLabelOptions(
             (chart) => {
               return Chart.defaults.plugins.legend.labels.generateLabels(chart).map((label) => {
@@ -1196,7 +1327,8 @@ function renderAnnualPerformanceDashboard() {
                   lineWidth: 0
                 };
               });
-            }
+            },
+            { spread: true }
           )
         }
       },
@@ -1262,13 +1394,15 @@ const barValueLabelPlugin = {
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
     const mobile = isMobileChartLayout();
+    const annualChart = chart.canvas?.id === "annualPerformanceChart";
+    const annualFontSize = mobile ? 10 : 12;
     ctx.save();
-    ctx.font = `700 ${mobile ? 9 : 11}px Segoe UI, Arial, sans-serif`;
-    ctx.fillStyle = chartTextColor();
+    ctx.font = `700 ${annualChart ? annualFontSize : mobile ? 9 : 11}px Segoe UI, Arial, sans-serif`;
+    ctx.fillStyle = annualChart ? "#ffffff" : chartTextColor();
     ctx.shadowColor = document.body.classList.contains("light-theme") ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.45)";
     ctx.shadowBlur = mobile ? 1 : document.body.classList.contains("light-theme") ? 2 : 4;
     ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
+    ctx.textBaseline = annualChart ? "middle" : "bottom";
 
     chart.data.datasets.forEach((dataset, datasetIndex) => {
       const meta = chart.getDatasetMeta(datasetIndex);
@@ -1276,6 +1410,19 @@ const barValueLabelPlugin = {
         const value = Number(dataset.data[index] || 0);
         if (!value) return;
         const position = bar.tooltipPosition();
+        if (annualChart) {
+          const barWidth = Math.max(Number(bar.width || 0), mobile ? 18 : 24);
+          const barY = Number(bar.y);
+          const baseY = Number(bar.base);
+          if (!Number.isFinite(barY) || !Number.isFinite(baseY)) return;
+          const top = Math.min(barY, baseY);
+          const bottom = Math.max(barY, baseY);
+          const height = Math.max(bottom - top, 0);
+          const label = formatMobileChartValue(value);
+          if (height < annualFontSize + 3) return;
+          ctx.fillText(label, position.x, top + height / 2, Math.max(barWidth - 4, 12));
+          return;
+        }
         ctx.fillText(mobile ? formatMobileChartValue(value) : formatCompactBudget(value), position.x, position.y - (mobile ? 3 : 5));
       });
     });
@@ -1372,9 +1519,9 @@ function updateCategoryOptions() {
 function setActiveDashboardTab(button) {
   els.tabButtons.forEach((tab) => tab.classList.toggle("active", tab === button));
   const isFitout = button.dataset.tab === "fitout";
-  els.renovationSelector.hidden = isFitout;
+  els.renovationSelector.hidden = true;
   els.fitoutSelector.hidden = !isFitout;
-  els.dashboardTitle.textContent = isFitout ? els.fitoutType.value : activeRenovationLabel();
+  updateDashboardTitle();
   if (isFitout) {
     render();
   } else {
@@ -1384,17 +1531,13 @@ function setActiveDashboardTab(button) {
 
 function updateRenovationTitle() {
   if (isRenovationView()) {
-    els.dashboardTitle.textContent = activeRenovationLabel();
     resetRenovationFilters();
     applyActiveRenovationRows();
   }
 }
 
 function updateFitoutTitle() {
-  const activeTab = [...els.tabButtons].find((tab) => tab.classList.contains("active"));
-  if (activeTab?.dataset.tab === "fitout") {
-    els.dashboardTitle.textContent = els.fitoutType.value;
-  }
+  updateDashboardTitle();
   render();
 }
 

@@ -779,6 +779,11 @@ button:hover {
   max-height: 230px;
 }
 
+#annualPerformanceChart {
+  height: 250px !important;
+  max-height: 250px;
+}
+
 .status-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(130px, 1fr));
