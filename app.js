@@ -192,7 +192,6 @@ const els = {
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
   filterPanel: document.querySelector("#clearFilterBtn")?.closest(".panel"),
   projectFilter: document.querySelector("#projectFilter"),
-  registerProjectFilter: document.querySelector("#registerProjectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   statusFilter: document.querySelector("#statusFilter"),
   searchBox: document.querySelector("#searchBox"),
@@ -616,9 +615,6 @@ function daysLabel(daysLeft) {
 
 function applyFilters() {
   const project = els.projectFilter.value;
-  if (els.registerProjectFilter && els.registerProjectFilter.value !== project) {
-    els.registerProjectFilter.value = project;
-  }
   const category = els.categoryFilter.value;
   const status = els.statusFilter.value;
   const keyword = normalizeHeader(els.searchBox.value);
@@ -726,11 +722,20 @@ function formatProjectTitle(project) {
 }
 
 function updateLiveClock() {
-  els.lastUpdated.textContent = new Intl.DateTimeFormat("en-GB", {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  })
+    .format(now)
+    .replace(/ /g, "-");
+  const time = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit"
-  }).format(new Date());
+  }).format(now);
+  els.lastUpdated.textContent = `${date} ${time}`;
 }
 
 function renderKpis() {
@@ -2032,10 +2037,6 @@ els.mobileGoogleSheetUrl?.addEventListener("input", () => {
 });
 els.clearFilterBtn.addEventListener("click", clearRenovationFilters);
 els.projectFilter.addEventListener("change", applyFilters);
-els.registerProjectFilter?.addEventListener("change", () => {
-  els.projectFilter.value = els.registerProjectFilter.value;
-  applyFilters();
-});
 els.categoryFilter.addEventListener("change", applyFilters);
 els.statusFilter.addEventListener("change", applyFilters);
 els.searchBox.addEventListener("input", applyFilters);
