@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Warehouse Operation Dashboard</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="stylesheet" href="./styles.css?v=20260508-1008" />
+    <link rel="stylesheet" href="./styles.css?v=20260515-1647" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   </head>
@@ -59,7 +59,7 @@
           </label>
         </div>
 
-        <section class="panel">
+        <section class="panel filter-panel">
           <div class="panel-heading">
             <h2>Filters</h2>
             <button id="clearFilterBtn" class="clear-filter-button" type="button">Clear Filter</button>
@@ -99,15 +99,7 @@
           </label>
         </section>
 
-        <section class="panel upload-panel">
-          <label class="file-drop" for="excelFile">
-            <span class="file-icon">+</span>
-            <strong>Import Excel</strong>
-            <small>.xlsx, .xls or .csv</small>
-          </label>
-          <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
-          <button id="loadSampleBtn" class="secondary-button" type="button">Click To Upload</button>
-        </section>
+        <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" hidden />
 
         <section class="panel mobile-sheet-panel" aria-label="Mobile Google Sheet sync">
           <h2>Google Sheet URL</h2>
@@ -321,8 +313,8 @@
         <section class="executive-panels renovation-view">
           <article class="chart-panel">
             <div class="section-title">
-              <h3>5-Year Budget Forecast</h3>
-              <small>Annual improvement cycle budget</small>
+              <h3>Renovation Timeline</h3>
+              <small>Upcoming work from data sheet</small>
             </div>
             <div id="annualForecast" class="forecast-grid"></div>
           </article>
@@ -358,12 +350,12 @@
               </thead>
               <tbody id="assetTable"></tbody>
             </table>
-            <div id="emptyState" class="empty-state">No records yet. Import Excel or load sample data.</div>
+            <div id="emptyState" class="empty-state">No records yet. Sync Google Sheet to load dashboard data.</div>
           </div>
         </section>
       </section>
     </main>
 
-    <script src="./app.js?v=20260508-1018"></script>
+    <script src="./app.js?v=20260515-1647"></script>
   </body>
 </html>

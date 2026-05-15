@@ -1,5 +1,8 @@
 ﻿const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DUE_SOON_DAYS = 30;
+// Thailand headline CPI inflation, April 2026 TPSO report.
+const CURRENT_INFLATION_RATE = 0.0289;
+const CURRENT_INFLATION_LABEL = "2.89%";
 const STORAGE_KEY = "warehouse-operation-dashboard-rows-v9";
 const RENOVATION_STORAGE_KEY = "warehouse-operation-dashboard-renovation-views-v1";
 const MINI_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mini-fitout-v2";
@@ -190,7 +193,7 @@ const els = {
   mobileSheetStatus: document.querySelector("#mobileSheetStatus"),
   themeToggle: document.querySelector("#themeToggle"),
   clearFilterBtn: document.querySelector("#clearFilterBtn"),
-  filterPanel: document.querySelector("#clearFilterBtn")?.closest(".panel"),
+  filterPanel: document.querySelector(".filter-panel"),
   projectFilter: document.querySelector("#projectFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   statusFilter: document.querySelector("#statusFilter"),
@@ -750,6 +753,14 @@ function renderKpis() {
   els.shortBudget.textContent = formatBudget(horizonBudget.short);
   els.midBudget.textContent = formatBudget(horizonBudget.medium);
   els.longBudget.textContent = formatBudget(horizonBudget.long);
+  setInflationTooltip(els.midBudget, horizonBudget.mediumInflated, 5);
+  setInflationTooltip(els.longBudget, horizonBudget.longInflated, 10);
+}
+
+function setInflationTooltip(element, inflatedValue, years) {
+  const tooltip = `Inflation adjusted ${years}Y: ${formatBudget(inflatedValue)} | Inflation rate: ${CURRENT_INFLATION_LABEL} YoY`;
+  element.dataset.tooltip = tooltip;
+  element.setAttribute("aria-label", tooltip);
 }
 
 function formatKpiRatio(value, total) {
@@ -759,39 +770,46 @@ function formatKpiRatio(value, total) {
 function calculateHorizonBudget(rows) {
   return rows.reduce(
     (total, row) => {
-      total.short += row.budget * countOccurrences(row, 2);
-      total.medium += row.budget * countOccurrences(row, 5);
-      total.long += row.budget * countOccurrences(row, 10);
+      total.short += calculateOccurrenceBudget(row, 2);
+      total.medium += calculateOccurrenceBudget(row, 5);
+      total.long += calculateOccurrenceBudget(row, 10);
+      total.mediumInflated += calculateOccurrenceBudget(row, 5, CURRENT_INFLATION_RATE);
+      total.longInflated += calculateOccurrenceBudget(row, 10, CURRENT_INFLATION_RATE);
       return total;
     },
-    { short: 0, medium: 0, long: 0 }
+    { short: 0, medium: 0, long: 0, mediumInflated: 0, longInflated: 0 }
   );
 }
 
-function countOccurrences(row, years) {
+function calculateOccurrenceBudget(row, years, inflationRate = 0) {
   if (!row.budget) return 0;
 
   const today = startOfDay(new Date());
   const horizonEnd = addMonths(today, years * 12);
   const cycleMonths = row.cycleMonths;
   let due = row.dueDate ? startOfDay(row.dueDate) : today;
-  let count = 0;
+  let total = 0;
+  const addOccurrence = (date) => {
+    const yearsAhead = Math.max(0, (date - today) / (365.25 * MS_PER_DAY));
+    total += row.budget * Math.pow(1 + inflationRate, yearsAhead);
+  };
 
   if (!cycleMonths) {
-    return due <= horizonEnd ? 1 : 0;
+    if (due <= horizonEnd) addOccurrence(due);
+    return total;
   }
 
   if (due < today) {
-    count += 1;
+    addOccurrence(today);
     due = addMonths(today, cycleMonths);
   }
 
   while (due <= horizonEnd) {
-    count += 1;
+    addOccurrence(due);
     due = addMonths(due, cycleMonths);
   }
 
-  return count;
+  return total;
 }
 
 function addMonths(date, months) {
@@ -830,19 +848,137 @@ function calculateAnnualForecast(rows) {
 }
 
 function renderAnnualForecast() {
-  const forecast = calculateAnnualForecast(filteredRows);
-  const max = Math.max(...forecast.map((item) => item.budget), 1);
-  els.annualForecast.innerHTML = forecast
-    .map(
-      (item) => `
-        <div class="forecast-row">
-          <span>${item.year}</span>
-          <div><i style="width:${Math.max((item.budget / max) * 100, 2)}%"></i></div>
-          <strong>${formatCompactBudget(item.budget)}</strong>
+  const timeline = buildRenovationTimeline(filteredRows);
+  if (!timeline.length) {
+    els.annualForecast.innerHTML = `
+      <div class="timeline-empty">
+        <strong>No renovation work found</strong>
+        <span>Check due date, improvement cycle, or active filters.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const visibleItems = timeline.slice(0, 96);
+  const hiddenCount = Math.max(timeline.length - visibleItems.length, 0);
+  const grouped = visibleItems.reduce((groups, item) => {
+    const year = item.date.getFullYear();
+    groups[year] ||= [];
+    groups[year].push(item);
+    return groups;
+  }, {});
+
+  els.annualForecast.innerHTML = `
+    <div class="timeline-summary">
+      <strong>${timeline.length} scheduled cycles</strong>
+      <span>${formatDate(timeline[0].date)} - ${formatDate(timeline[timeline.length - 1].date)}</span>
+    </div>
+    <div class="timeline-list">
+      ${Object.entries(grouped)
+        .map(
+          ([year, items]) => `
+            <section class="timeline-year">
+              <div class="timeline-year-label">${year}</div>
+              <div class="timeline-year-items">
+                ${items.map(renderTimelineItem).join("")}
+              </div>
+            </section>
+          `
+        )
+        .join("")}
+    </div>
+    ${hiddenCount ? `<div class="timeline-more">+${hiddenCount} more cycles hidden by preview limit</div>` : ""}
+  `;
+}
+
+function buildRenovationTimeline(rows) {
+  const today = startOfDay(new Date());
+  const horizonEnd = addMonths(today, 60);
+  const timeline = [];
+
+  rows.forEach((row) => {
+    const cycleMonths = row.cycleMonths;
+    let due = row.dueDate ? startOfDay(row.dueDate) : today;
+
+    if (!cycleMonths) {
+      if (due >= today && due <= horizonEnd) timeline.push(createTimelineItem(row, due));
+      return;
+    }
+
+    while (due < today) due = addMonths(due, cycleMonths);
+
+    while (due <= horizonEnd) {
+      timeline.push(createTimelineItem(row, due));
+      due = addMonths(due, cycleMonths);
+    }
+  });
+
+  return timeline.sort((a, b) => a.date - b.date || priorityWeight(a.priority) - priorityWeight(b.priority) || a.asset.localeCompare(b.asset, "en"));
+}
+
+function createTimelineItem(row, date) {
+  return {
+    row,
+    date,
+    project: row.project,
+    block: row.block,
+    unit: row.unit,
+    category: row.category,
+    asset: row.asset,
+    area: row.area,
+    priority: row.priority,
+    status: row.status,
+    budget: row.budget,
+    lastDate: row.lastDate,
+    cycle: row.cycle
+  };
+}
+
+function renderTimelineItem(item) {
+  const badge = statusLabel(item.status);
+  const badgeClass = item.status;
+  const cycleText = formatCycleMonths(item.cycle);
+  return `
+    <article class="timeline-item">
+      <div class="timeline-date">
+        <strong>${formatTimelineDay(item.date)}</strong>
+        <span>${formatTimelineMonth(item.date)}</span>
+      </div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <div class="timeline-item-head">
+          <strong>${escapeHtml(item.asset)}</strong>
+          <span class="timeline-badge ${badgeClass}">${escapeHtml(badge)}</span>
         </div>
-      `
-    )
-    .join("");
+        <p>${escapeHtml(item.project)} / Block ${escapeHtml(item.block)} / Unit ${escapeHtml(item.unit)}</p>
+        <div class="timeline-meta">
+          <span>${escapeHtml(item.category)}</span>
+          <span>${escapeHtml(item.area)}</span>
+          <span>Last: ${formatDate(item.lastDate)}</span>
+          <span>Cycle: ${escapeHtml(cycleText)}</span>
+          <strong>${formatBudget(item.budget)}</strong>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function formatCycleMonths(cycle) {
+  const text = cleanValue(cycle);
+  if (!text || text === "-") return "-";
+  return /\bmonths?\b/i.test(text) ? text : `${text} months`;
+}
+
+function priorityWeight(priority) {
+  return { Critical: 0, High: 1, Medium: 2, Low: 3 }[priority] ?? 9;
+}
+
+function formatTimelineDay(date) {
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit" }).format(date);
+}
+
+function formatTimelineMonth(date) {
+  return new Intl.DateTimeFormat("en-GB", { month: "short" }).format(date);
 }
 
 function formatCompactBudget(value) {
@@ -1410,6 +1546,7 @@ const barValueLabelPlugin = {
     ctx.textBaseline = annualChart ? "middle" : "bottom";
 
     chart.data.datasets.forEach((dataset, datasetIndex) => {
+      if (typeof chart.isDatasetVisible === "function" && !chart.isDatasetVisible(datasetIndex)) return;
       const meta = chart.getDatasetMeta(datasetIndex);
       meta.data.forEach((bar, index) => {
         const value = Number(dataset.data[index] || 0);
@@ -2018,7 +2155,7 @@ const [header = [], ...body] = rows.filter((line) => line.some((value) => value.
 
 applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "dark", false);
 
-els.file.addEventListener("change", (event) => {
+els.file?.addEventListener("change", (event) => {
   const [file] = event.target.files;
   if (file) readExcel(file);
 });
@@ -2026,7 +2163,7 @@ els.themeToggle.addEventListener("click", toggleTheme);
 els.tabButtons.forEach((button) => button.addEventListener("click", () => setActiveDashboardTab(button)));
 els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
-els.loadSampleBtn.addEventListener("click", () => els.file.click());
+els.loadSampleBtn?.addEventListener("click", () => els.file?.click());
 els.syncSheetBtn.addEventListener("click", syncGoogleSheet);
 els.mobileSyncSheetBtn?.addEventListener("click", syncGoogleSheet);
 els.googleSheetUrl.addEventListener("input", () => {
