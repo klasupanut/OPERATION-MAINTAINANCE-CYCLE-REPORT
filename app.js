@@ -176,6 +176,7 @@ let renovationRowsByView = {};
 let miniFitoutRows = [];
 let megaFitoutRows = [];
 let annualSummaryRows = [];
+let timelineRangeIndex = 0;
 let categoryChart;
 let statusChart;
 let fitoutFinanceChart;
@@ -821,6 +822,21 @@ function addMonths(date, months) {
   return startOfDay(next);
 }
 
+function getTimelineRanges() {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 5 }, (_, index) => {
+    const startYear = currentYear + index * 5;
+    const start = new Date(startYear, 0, 1);
+    const end = new Date(startYear + 4, 11, 31);
+    return {
+      index,
+      start,
+      end: startOfDay(end),
+      label: `${formatDate(start)} - ${formatDate(end)}`
+    };
+  });
+}
+
 function calculateAnnualForecast(rows) {
   const startYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, index) => startYear + index);
@@ -848,12 +864,16 @@ function calculateAnnualForecast(rows) {
 }
 
 function renderAnnualForecast() {
-  const timeline = buildRenovationTimeline(filteredRows);
+  const ranges = getTimelineRanges();
+  const selectedRange = ranges[timelineRangeIndex] || ranges[0];
+  const timeline = buildRenovationTimeline(filteredRows, selectedRange.start, selectedRange.end);
+  const summaryMarkup = renderTimelineSummary(timeline, ranges, selectedRange);
   if (!timeline.length) {
     els.annualForecast.innerHTML = `
+      ${summaryMarkup}
       <div class="timeline-empty">
         <strong>No renovation work found</strong>
-        <span>Check due date, improvement cycle, or active filters.</span>
+        <span>Check due date, improvement cycle, active filters, or selected time range.</span>
       </div>
     `;
     return;
@@ -869,10 +889,7 @@ function renderAnnualForecast() {
   }, {});
 
   els.annualForecast.innerHTML = `
-    <div class="timeline-summary">
-      <strong>${timeline.length} scheduled cycles</strong>
-      <span>${formatDate(timeline[0].date)} - ${formatDate(timeline[timeline.length - 1].date)}</span>
-    </div>
+    ${summaryMarkup}
     <div class="timeline-list">
       ${Object.entries(grouped)
         .map(
@@ -891,9 +908,35 @@ function renderAnnualForecast() {
   `;
 }
 
-function buildRenovationTimeline(rows) {
+function renderTimelineSummary(timeline, ranges, selectedRange) {
+  return `
+    <div class="timeline-summary">
+      <div class="timeline-summary-main">
+        <label class="timeline-range-control">
+          <span>Time Range</span>
+          <select id="timelineRangeSelect" aria-label="Renovation timeline time range">
+            ${ranges
+              .map(
+                (range) => `
+                  <option value="${range.index}"${range.index === selectedRange.index ? " selected" : ""}>
+                    ${escapeHtml(range.label)}
+                  </option>
+                `
+              )
+              .join("")}
+          </select>
+        </label>
+        <strong>${timeline.length} scheduled cycles</strong>
+      </div>
+      <span>${escapeHtml(selectedRange.label)}</span>
+    </div>
+  `;
+}
+
+function buildRenovationTimeline(rows, rangeStart, rangeEnd) {
   const today = startOfDay(new Date());
-  const horizonEnd = addMonths(today, 60);
+  const timelineStart = rangeStart || today;
+  const timelineEnd = rangeEnd || addMonths(today, 60);
   const timeline = [];
 
   rows.forEach((row) => {
@@ -901,13 +944,13 @@ function buildRenovationTimeline(rows) {
     let due = row.dueDate ? startOfDay(row.dueDate) : today;
 
     if (!cycleMonths) {
-      if (due >= today && due <= horizonEnd) timeline.push(createTimelineItem(row, due));
+      if (due >= timelineStart && due <= timelineEnd) timeline.push(createTimelineItem(row, due));
       return;
     }
 
-    while (due < today) due = addMonths(due, cycleMonths);
+    while (due < timelineStart) due = addMonths(due, cycleMonths);
 
-    while (due <= horizonEnd) {
+    while (due <= timelineEnd) {
       timeline.push(createTimelineItem(row, due));
       due = addMonths(due, cycleMonths);
     }
@@ -2179,6 +2222,11 @@ els.statusFilter.addEventListener("change", applyFilters);
 els.searchBox.addEventListener("input", applyFilters);
 els.refreshBtn.addEventListener("click", () => setRows(rawRows));
 els.exportBtn.addEventListener("click", exportCsv);
+els.annualForecast.addEventListener("change", (event) => {
+  if (event.target?.id !== "timelineRangeSelect") return;
+  timelineRangeIndex = Number(event.target.value) || 0;
+  renderAnnualForecast();
+});
 
 setInterval(updateLiveClock, 1000);
 renovationRowsByView = loadStoredRenovationRows() || {};
