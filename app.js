@@ -9,6 +9,9 @@ const MINI_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mini-fitout-v2";
 const MEGA_FITOUT_STORAGE_KEY = "warehouse-operation-dashboard-mega-fitout-v1";
 const ANNUAL_SUMMARY_STORAGE_KEY = "warehouse-operation-dashboard-annual-summary-v1";
 const THEME_STORAGE_KEY = "warehouse-operation-dashboard-theme";
+const SHEET_URL_STORAGE_KEY = "warehouse-operation-dashboard-google-sheet-url";
+const SHEET_URL_DEFAULT_VERSION_KEY = "warehouse-operation-dashboard-default-sheet-url-v1";
+const DEFAULT_GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1UdyLxEI-v07rzwpKanJAGuJlyPV8bC9BN9gxBxXnB1U/edit";
 const FITOUT_DASHBOARD_TYPES = ["MINI FIT-OUT", "MEGA FIT-OUT"];
 const OLD_OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle (overall)";
 const OVERALL_RENOVATION_LABEL = "Warehouse Asset Renovation Cycle";
@@ -1877,6 +1880,30 @@ function loadSample() {
   setRows(sampleRows);
 }
 
+function setGoogleSheetUrlValue(url) {
+  els.googleSheetUrl.value = url || "";
+  if (els.mobileGoogleSheetUrl) els.mobileGoogleSheetUrl.value = url || "";
+}
+
+function currentGoogleSheetUrl() {
+  const mobileActive = window.matchMedia("(max-width: 760px)").matches && els.mobileGoogleSheetUrl;
+  return (mobileActive ? els.mobileGoogleSheetUrl.value : els.googleSheetUrl.value).trim();
+}
+
+function saveGoogleSheetUrl(url) {
+  localStorage.setItem(SHEET_URL_STORAGE_KEY, url);
+  setGoogleSheetUrlValue(url);
+}
+
+function loadStoredGoogleSheetUrl() {
+  if (!localStorage.getItem(SHEET_URL_DEFAULT_VERSION_KEY)) {
+    localStorage.setItem(SHEET_URL_DEFAULT_VERSION_KEY, "1");
+    localStorage.setItem(SHEET_URL_STORAGE_KEY, DEFAULT_GOOGLE_SHEET_URL);
+    return DEFAULT_GOOGLE_SHEET_URL;
+  }
+  return localStorage.getItem(SHEET_URL_STORAGE_KEY) || DEFAULT_GOOGLE_SHEET_URL;
+}
+
 function exportCsv() {
   const header = ["Priority", "Status", "Contractor", "Project", "Block", "Unit", "Discipline", "Asset", "Area", "Cycle (Months)", "Last Update", "Due Date", "Remaining", "Owner", "Budget"];
   const body = sortedRegisterRows().map((row) => [
@@ -1960,11 +1987,9 @@ function readExcel(file) {
   }
 }
 
-async function syncGoogleSheet() {
-  const mobileActive = window.matchMedia("(max-width: 760px)").matches && els.mobileGoogleSheetUrl;
-  const url = (mobileActive ? els.mobileGoogleSheetUrl.value : els.googleSheetUrl.value).trim();
-  els.googleSheetUrl.value = url;
-  if (els.mobileGoogleSheetUrl) els.mobileGoogleSheetUrl.value = url;
+async function syncGoogleSheet(urlOverride = "") {
+  const url = (urlOverride || currentGoogleSheetUrl() || loadStoredGoogleSheetUrl()).trim();
+  setGoogleSheetUrlValue(url);
   if (!url) {
     setSheetStatus("Paste a Google Sheet URL first.", true);
     return;
@@ -1974,6 +1999,7 @@ async function syncGoogleSheet() {
     setSheetStatus("Syncing Google Sheet...");
     if (isGoogleSheetUrl(url)) {
       await syncAllGoogleSheets(url);
+      saveGoogleSheetUrl(url);
       return;
     }
 
@@ -1983,16 +2009,19 @@ async function syncGoogleSheet() {
       const rows = mapMiniFitoutRows(sourceRows);
       if (!rows.length) throw new Error("No rows found");
       setActiveFitoutRows(rows);
+      saveGoogleSheetUrl(url);
       setSheetStatus(`Synced ${rows.length} ${sheetName} records from CSV.`);
     } else if (isAnnualPerformanceView()) {
       const rows = mapAnnualSummaryRows(sourceRows);
       if (!rows.length) throw new Error("No annual summary rows found");
       setAnnualSummaryRows(rows);
+      saveGoogleSheetUrl(url);
       setSheetStatus(`Synced ${rows.length} annual performance rows from CSV.`);
     } else if (isRenovationView()) {
       const rows = mapWorkbookRows(sourceRows);
       if (!rows.length) throw new Error("No rows found");
       setRows(rows);
+      saveGoogleSheetUrl(url);
       setSheetStatus(`Synced ${rows.length} ${sheetName} records from CSV.`);
     } else {
       setSheetStatus("This Fit-Out view is not connected yet. Renovation data remains locked to Operation Plan.", true);
@@ -2001,6 +2030,16 @@ async function syncGoogleSheet() {
     console.error(error);
     setSheetStatus("Unable to sync. Share the sheet as Anyone with the link: Viewer, then paste the normal Google Sheet URL.", true);
   }
+}
+
+async function refreshDashboardData() {
+  const savedUrl = currentGoogleSheetUrl() || loadStoredGoogleSheetUrl();
+  if (savedUrl) {
+    await syncGoogleSheet(savedUrl);
+    return;
+  }
+  setRows(rawRows);
+  setSheetStatus("No saved Google Sheet URL yet. Paste the URL once, then Refresh can update from it.", true);
 }
 
 async function syncAllGoogleSheets(url) {
@@ -2197,6 +2236,11 @@ const [header = [], ...body] = rows.filter((line) => line.some((value) => value.
 }
 
 applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "dark", false);
+const storedGoogleSheetUrl = loadStoredGoogleSheetUrl();
+if (storedGoogleSheetUrl) {
+  setGoogleSheetUrlValue(storedGoogleSheetUrl);
+  setSheetStatus("Saved Google Sheet URL loaded. Press Refresh to pull the latest sheet data.");
+}
 
 els.file?.addEventListener("change", (event) => {
   const [file] = event.target.files;
@@ -2207,8 +2251,8 @@ els.tabButtons.forEach((button) => button.addEventListener("click", () => setAct
 els.renovationType.addEventListener("change", updateRenovationTitle);
 els.fitoutType.addEventListener("change", updateFitoutTitle);
 els.loadSampleBtn?.addEventListener("click", () => els.file?.click());
-els.syncSheetBtn.addEventListener("click", syncGoogleSheet);
-els.mobileSyncSheetBtn?.addEventListener("click", syncGoogleSheet);
+els.syncSheetBtn.addEventListener("click", () => syncGoogleSheet());
+els.mobileSyncSheetBtn?.addEventListener("click", () => syncGoogleSheet());
 els.googleSheetUrl.addEventListener("input", () => {
   if (els.mobileGoogleSheetUrl) els.mobileGoogleSheetUrl.value = els.googleSheetUrl.value;
 });
@@ -2220,7 +2264,7 @@ els.projectFilter.addEventListener("change", applyFilters);
 els.categoryFilter.addEventListener("change", applyFilters);
 els.statusFilter.addEventListener("change", applyFilters);
 els.searchBox.addEventListener("input", applyFilters);
-els.refreshBtn.addEventListener("click", () => setRows(rawRows));
+els.refreshBtn.addEventListener("click", refreshDashboardData);
 els.exportBtn.addEventListener("click", exportCsv);
 els.annualForecast.addEventListener("change", (event) => {
   if (event.target?.id !== "timelineRangeSelect") return;
@@ -2237,4 +2281,7 @@ miniFitoutRows = loadStoredMiniFitoutRows() || deserializeMiniFitoutRows(sampleM
 megaFitoutRows = loadStoredMegaFitoutRows() || deserializeMiniFitoutRows(sampleMegaFitoutRows);
 annualSummaryRows = loadStoredAnnualSummaryRows() || buildAnnualSummaryRows(miniFitoutRows, megaFitoutRows);
 applyActiveRenovationRows();
+if (storedGoogleSheetUrl) {
+  window.setTimeout(() => syncGoogleSheet(storedGoogleSheetUrl), 250);
+}
 

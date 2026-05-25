@@ -6,13 +6,13 @@ A browser-based dashboard for monitoring warehouse asset improvement cycles from
 
 1. Open `index.html` in a browser.
 2. Click `Import Excel` and select an `.xlsx`, `.xls`, or `.csv` file.
-3. Or paste a public Google Sheet URL and click `Sync Google Sheet`.
+3. Or use the built-in Warehouse Operation Dashboard Google Sheet URL and click `Refresh Sheet Data`.
 4. Use the discipline, status, and search filters to review the improvement register.
 5. Click `Export CSV` to export the filtered records.
 
 ## Google Sheet Sync
 
-The dashboard can read Google Sheet data when the sheet is shared publicly.
+The dashboard can read Google Sheet data when the sheet is shared publicly. The app now includes the Warehouse Operation Dashboard template URL as the default sync source.
 
 Template:
 
@@ -26,7 +26,7 @@ Recommended setup:
 4. Set `General access` to `Anyone with the link`.
 5. Set the role to `Viewer`.
 6. Copy the normal Google Sheet URL, such as `https://docs.google.com/spreadsheets/d/.../edit#gid=0`.
-7. Paste it into `Google Sheet URL` and click `Sync Google Sheet`.
+7. Paste it into `Google Sheet URL` and click `Refresh Sheet Data` if you want to override the built-in default URL.
 
 The app uses the Google Visualization API JSONP endpoint for normal Google Sheet URLs, which avoids browser CORS issues when the dashboard is opened from a local file or static website.
 
