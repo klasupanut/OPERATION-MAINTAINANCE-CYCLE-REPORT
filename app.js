@@ -270,7 +270,11 @@ function sortDisciplines(items) {
 
 function findColumn(row, aliases) {
   const keys = Object.keys(row);
-  return keys.find((key) => aliases.includes(normalizeHeader(key)));
+  return keys.find((key) => aliases.includes(normalizeHeader(key)))
+    || keys.find((key) => {
+      const normalizedKey = normalizeHeader(key);
+      return aliases.some((alias) => normalizedKey.startsWith(`${alias} `));
+    });
 }
 
 function mapWorkbookRows(rows) {
@@ -2313,10 +2317,10 @@ function googleSheetNameAliases(sheetName) {
     "CHODBIZ CHAENGWATTANA": ["CHODBIZ CHAENGWATTANA"],
     "CHOD BIZ BANGNA KM.8": ["CHOD BIZ BANGNA KM.8"],
     "CHODBIZ PUTTHAMONTHON SAI 4": ["CHODBIZ PUTTHAMONTHON SAI 4"],
-    "F&W CHODTHANAWAT 1": ["F&W CHODTHANAWAT 1"],
-    "F&W CHODTHANAWAT 2": ["F&W CHODTHANAWAT 2"],
-    "F&W CHODTHANAWAT 3": ["F&W CHODTHANAWAT 3"],
-    "F&W CHODTHANAWAT 5": ["F&W CHODTHANAWAT 5"]
+    "F&W CHODTHANAWAT 1": ["F&W CHODTHANAWAT 1", "F&WH CHODTHANAWAT 1", "F&W CHODTHANAWAT1", "F&WH CHODTHANAWAT1"],
+    "F&W CHODTHANAWAT 2": ["F&W CHODTHANAWAT 2", "F&WH CHODTHANAWAT 2", "F&W CHODTHANAWAT2", "F&WH CHODTHANAWAT2"],
+    "F&W CHODTHANAWAT 3": ["F&W CHODTHANAWAT 3", "F&WH CHODTHANAWAT 3", "F&W CHODTHANAWAT3", "F&WH CHODTHANAWAT3"],
+    "F&W CHODTHANAWAT 5": ["F&W CHODTHANAWAT 5", "F&WH CHODTHANAWAT 5", "F&W CHODTHANAWAT5", "F&WH CHODTHANAWAT5"]
   };
   return aliases[sheetName] || [sheetName];
 }
