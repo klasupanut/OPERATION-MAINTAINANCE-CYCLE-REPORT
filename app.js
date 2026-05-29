@@ -686,11 +686,25 @@ function activeTabName() {
 }
 
 function activeRenovationLabel() {
-  return RENOVATION_SHEET_OPTIONS[0].label;
+  return projectFilterToRenovationLabel(els.projectFilter?.value) || RENOVATION_SHEET_OPTIONS[0].label;
 }
 
 function activeRenovationSheetName() {
   return RENOVATION_SHEET_OPTIONS.find((option) => option.label === activeRenovationLabel())?.sheetName || "Operation Plan";
+}
+
+function projectFilterToRenovationLabel(project) {
+  const normalized = normalizeProjectKey(project);
+  if (!normalized || normalized === "all") return RENOVATION_SHEET_OPTIONS[0].label;
+  const option = RENOVATION_SHEET_OPTIONS.find((item) => normalizeProjectKey(item.label) === normalized || normalizeProjectKey(item.sheetName) === normalized);
+  return option?.label || RENOVATION_SHEET_OPTIONS[0].label;
+}
+
+function normalizeProjectKey(value) {
+  return normalizeHeader(value)
+    .replace(/f\s*(?:&|and)\s*w(?:h)?/g, "fwh")
+    .replace(/\bchod\s*biz\b/g, "chodbiz")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function isRenovationView() {
@@ -1911,7 +1925,11 @@ function setRows(rows) {
 }
 
 function applyActiveRenovationRows() {
-  rawRows = renovationRowsByView[activeRenovationLabel()] || [];
+  const label = activeRenovationLabel();
+  const rows = renovationRowsByView[label] || [];
+  rawRows = rows.length || label === RENOVATION_SHEET_OPTIONS[0].label
+    ? rows
+    : renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] || [];
   updateCategoryOptions();
   applyFilters();
 }
@@ -1935,13 +1953,18 @@ function setAnnualSummaryRows(rows) {
 }
 
 function setAllDashboardRows({ renovationRows, operationRows, annualRows, miniRows, megaRows }) {
+  const normalizedRenovationRows = normalizeRenovationRowsByView(renovationRows || { [RENOVATION_SHEET_OPTIONS[0].label]: operationRows || [] });
   renovationRowsByView = Object.fromEntries(
-    Object.entries(renovationRows || { [RENOVATION_SHEET_OPTIONS[0].label]: operationRows || [] }).map(([label, rows]) => [
+    Object.entries(normalizedRenovationRows).map(([label, rows]) => [
       label,
       rows.map((row) => enrichRow(row))
     ])
   );
-  rawRows = renovationRowsByView[activeRenovationLabel()] || renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] || [];
+  const activeLabel = activeRenovationLabel();
+  const activeRows = renovationRowsByView[activeLabel] || [];
+  rawRows = activeRows.length || activeLabel === RENOVATION_SHEET_OPTIONS[0].label
+    ? activeRows
+    : renovationRowsByView[RENOVATION_SHEET_OPTIONS[0].label] || [];
   miniFitoutRows = miniRows;
   megaFitoutRows = megaRows;
   annualSummaryRows = annualRows;
@@ -1950,9 +1973,20 @@ function setAllDashboardRows({ renovationRows, operationRows, annualRows, miniRo
   localStorage.setItem(MINI_FITOUT_STORAGE_KEY, JSON.stringify(serializeMiniFitoutRows(miniFitoutRows)));
   localStorage.setItem(MEGA_FITOUT_STORAGE_KEY, JSON.stringify(serializeMiniFitoutRows(megaFitoutRows)));
   localStorage.setItem(ANNUAL_SUMMARY_STORAGE_KEY, JSON.stringify(serializeAnnualSummaryRows(annualSummaryRows)));
-  if (isRenovationView()) resetRenovationFilters();
   updateCategoryOptions();
   applyFilters();
+}
+
+function normalizeRenovationRowsByView(rowsByView) {
+  const normalized = { ...rowsByView };
+  const overallLabel = RENOVATION_SHEET_OPTIONS[0].label;
+  const projectRows = RENOVATION_SHEET_OPTIONS.slice(1).flatMap((option) => normalized[option.label] || []);
+  if (projectRows.length) {
+    normalized[overallLabel] = projectRows;
+  } else if (!normalized[overallLabel]?.length) {
+    normalized[overallLabel] = [];
+  }
+  return normalized;
 }
 
 function setActiveFitoutRows(rows) {
@@ -2425,7 +2459,13 @@ els.mobileGoogleSheetUrl?.addEventListener("input", () => {
   els.googleSheetUrl.value = els.mobileGoogleSheetUrl.value;
 });
 els.clearFilterBtn.addEventListener("click", clearRenovationFilters);
-els.projectFilter.addEventListener("change", applyFilters);
+els.projectFilter.addEventListener("change", () => {
+  if (isRenovationView()) {
+    applyActiveRenovationRows();
+  } else {
+    applyFilters();
+  }
+});
 els.categoryFilter.addEventListener("change", applyFilters);
 els.statusFilter.addEventListener("change", applyFilters);
 els.searchBox.addEventListener("input", applyFilters);
