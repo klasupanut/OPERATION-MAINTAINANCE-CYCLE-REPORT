@@ -427,6 +427,20 @@ function chartGridColor() {
   return document.body.classList.contains("light-theme") ? "rgba(100, 116, 139, 0.24)" : "rgba(226, 232, 240, 0.32)";
 }
 
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function renovationVisualColors() {
+  return {
+    overdue: cssVar("--red"),
+    dueSoon: cssVar("--amber"),
+    planned: cssVar("--green"),
+    done: cssVar("--violet"),
+    neutral: cssVar("--blue")
+  };
+}
+
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -547,11 +561,15 @@ function deserializeAnnualSummaryRows(rows) {
 
 function enrichRow(row) {
   const today = startOfDay(new Date());
-  const due = row.dueDate ? startOfDay(row.dueDate) : null;
+  const lastDate = parseDate(row.lastDate);
+  const dueDate = parseDate(row.dueDate);
+  const due = dueDate ? startOfDay(dueDate) : null;
   const daysLeft = due ? Math.ceil((due - today) / MS_PER_DAY) : null;
   const status = resolveStatus(row.explicitStatus, daysLeft);
   return {
     ...row,
+    lastDate,
+    dueDate,
     project: row.project || "Unassigned",
     category: normalizeDiscipline(row.category),
     priority: normalizePriority(row.priority),
@@ -1121,11 +1139,13 @@ function renderCharts() {
   const disciplineCounts = countBy(filteredRows, "category");
   const categories = sortDisciplines(Object.keys(disciplineCounts));
   const categoryData = categories.map((category) => disciplineCounts[category] || 0);
+  const visualColors = renovationVisualColors();
+  const recordsBarColor = "#2f6f9f";
   const statusItems = [
-    { key: "overdue", label: "Overdue", color: "#bd3f32" },
-    { key: "dueSoon", label: "Due Soon", color: "#d69028" },
-    { key: "planned", label: "Planned", color: "#1f7a59" },
-    { key: "done", label: "Completed", color: "#7897b3" }
+    { key: "overdue", label: "Overdue", color: visualColors.overdue },
+    { key: "dueSoon", label: "Due Soon", color: visualColors.dueSoon },
+    { key: "planned", label: "Planned", color: visualColors.planned },
+    { key: "done", label: "Completed", color: visualColors.done }
   ];
   const statusCounts = countBy(filteredRows, "status");
   const statusColors = statusItems.map((item) => item.color);
@@ -1141,15 +1161,20 @@ function renderCharts() {
         {
           label: "Records",
           data: categoryData,
-          backgroundColor: createHoverAwareColor("#2f6f9f", "discipline"),
-          borderRadius: 6
+          backgroundColor: createHoverAwareGradient(recordsBarColor, "discipline", "horizontal"),
+          borderColor: "#4d92c4",
+          glowColors: [recordsBarColor],
+          borderWidth: 1,
+          borderRadius: 8,
+          borderSkipped: false
         }
       ]
     },
     options: {
       ...chartOptions("y"),
       onHover: handleHoverFade
-    }
+    },
+    plugins: [chartGlowPlugin]
   });
 
   statusChart = new Chart(document.querySelector("#statusChart"), {
@@ -1159,8 +1184,11 @@ function renderCharts() {
       datasets: [
         {
           data: statusItems.map((item) => statusCounts[item.key] || 0),
-          backgroundColor: createHoverAwareIndexedColors(statusColors, "status"),
-          borderWidth: 0
+          backgroundColor: createHoverAwareIndexedGradients(statusColors, "status", "vertical"),
+          glowColors: statusColors,
+          borderWidth: 0,
+          hoverOffset: 5,
+          spacing: 0
         }
       ]
     },
@@ -1172,9 +1200,10 @@ function renderCharts() {
           display: false
         }
       },
-      cutout: "62%",
+      cutout: "64%",
       onHover: handleHoverFade
-    }
+    },
+    plugins: [chartGlowPlugin]
   });
   renderStatusLegend(statusItems, statusCounts);
 }
@@ -1184,7 +1213,7 @@ function renderStatusLegend(statusItems, statusCounts) {
     .map(
       (item) => `
         <span class="status-legend-item">
-          <i style="background:${item.color}"></i>
+          <i style="--legend-color:${item.color}"></i>
           <b>${escapeHtml(item.label)}</b>
           <em>${statusCounts[item.key] || 0}</em>
         </span>
@@ -1279,15 +1308,18 @@ function renderFitoutDashboard() {
   if (!window.Chart) return;
   fitoutFinanceChart?.destroy();
   fitoutFinanceChart = new Chart(document.querySelector("#fitoutFinanceChart"), {
-    type: "pie",
+    type: "doughnut",
     data: {
       labels: ["Actual CapEx", "Realized Revenue"],
       datasets: [
         {
           data: [capex, revenue],
-          backgroundColor: [palette.capex, palette.revenue],
-          borderColor: [palette.capex, palette.revenue],
-          borderWidth: 0
+          backgroundColor: createFitoutDonutColors([palette.capex, palette.revenue], "fitout-finance"),
+          borderColor: hexToRgba("#ffffff", document.body.classList.contains("light-theme") ? 0.52 : 0.16),
+          borderWidth: 1,
+          hoverOffset: 7,
+          spacing: 1,
+          glowColors: [palette.capex, palette.revenue]
         }
       ]
     },
@@ -1301,8 +1333,10 @@ function renderFitoutDashboard() {
             color: chartTextColor()
           }
         }
-      }
-    }
+      },
+      cutout: "58%"
+    },
+    plugins: [fitoutDonutDepthPlugin]
   });
 
   fitoutQuarterChart?.destroy();
@@ -1619,6 +1653,57 @@ const barValueLabelPlugin = {
   }
 };
 
+const chartGlowPlugin = {
+  id: "chartGlowPlugin",
+  beforeDatasetDraw(chart, args) {
+    const { ctx } = chart;
+    const dataset = chart.data.datasets[args.index];
+    const color = dataset?.legendColor || dataset?.glowColors?.[0] || dataset?.borderColor || renovationVisualColors().neutral;
+    ctx.save();
+    ctx.shadowColor = Array.isArray(color) ? hexToRgba(color[0] || renovationVisualColors().neutral, 0.26) : hexToRgba(color, 0.24);
+    ctx.shadowBlur = chart.canvas?.id === "statusChart" ? 9 : 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = chart.canvas?.id === "statusChart" ? 2 : 3;
+  },
+  afterDatasetDraw(chart) {
+    chart.ctx.restore();
+  }
+};
+
+const fitoutDonutDepthPlugin = {
+  id: "fitoutDonutDepthPlugin",
+  beforeDatasetDraw(chart) {
+    const dataset = chart.data.datasets[0];
+    const color = dataset?.glowColors?.[0] || renovationVisualColors().neutral;
+    chart.ctx.save();
+    chart.ctx.shadowColor = hexToRgba(color, document.body.classList.contains("light-theme") ? 0.18 : 0.28);
+    chart.ctx.shadowBlur = isMobileChartLayout() ? 10 : 16;
+    chart.ctx.shadowOffsetX = 0;
+    chart.ctx.shadowOffsetY = isMobileChartLayout() ? 5 : 8;
+  },
+  afterDatasetDraw(chart) {
+    const { ctx } = chart;
+    ctx.restore();
+
+    const arc = chart.getDatasetMeta(0)?.data?.[0];
+    if (!arc) return;
+    const { x, y, innerRadius, outerRadius } = arc;
+    ctx.save();
+    ctx.lineWidth = isMobileChartLayout() ? 1 : 1.4;
+    ctx.strokeStyle = document.body.classList.contains("light-theme") ? "rgba(255, 255, 255, 0.46)" : "rgba(255, 255, 255, 0.2)";
+    ctx.beginPath();
+    ctx.arc(x, y, outerRadius - 1, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = document.body.classList.contains("light-theme") ? "rgba(22, 35, 44, 0.14)" : "rgba(2, 8, 12, 0.45)";
+    ctx.lineWidth = isMobileChartLayout() ? 2 : 3;
+    ctx.beginPath();
+    ctx.arc(x, y, innerRadius + 1, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
 function createHoverAwareColor(color, key) {
   return (context) => {
     if (context.dataIndex === undefined) return color;
@@ -1635,21 +1720,78 @@ function createHoverAwareColor(color, key) {
   };
 }
 
+function createFitoutDonutColors(colors, keyPrefix) {
+  return (context) => {
+    const color = colors[context.dataIndex % colors.length] || colors[0];
+    if (context.dataIndex === undefined) return color;
+    return donutGradient(context.chart, color, `${keyPrefix}-${context.dataIndex}`);
+  };
+}
+
+function createHoverAwareGradient(color, key, direction = "vertical") {
+  return (context) => {
+    if (context.dataIndex === undefined) return color;
+    return chartGradient(context.chart, color, hoverOpacity(context, key), direction);
+  };
+}
+
+function createHoverAwareIndexedGradients(colors, keyPrefix, direction = "vertical") {
+  return (context) => {
+    const color = colors[context.dataIndex % colors.length] || colors[0];
+    if (context.dataIndex === undefined) return color;
+    const opacity = hoverOpacity(context, keyPrefix);
+    return chartGradient(context.chart, color, opacity, direction);
+  };
+}
+
 function createHoverAwareIndexedColors(colors, keyPrefix) {
   return (context) => {
     const color = colors[context.dataIndex] || colors[0];
     if (context.dataIndex === undefined) return color;
-    const active = context.chart.$activeBar;
-    if (!active) return color;
-    const isActive = active.datasetIndex === context.datasetIndex && active.index === context.dataIndex;
-    const targetOpacity = isActive ? 1 : 0.2;
-    context.chart.$barFadeState ||= {};
-    const stateKey = `${keyPrefix}-${context.dataIndex}`;
-    const currentOpacity = context.chart.$barFadeState[stateKey] ?? 1;
-    const nextOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.35;
-    context.chart.$barFadeState[stateKey] = Math.abs(nextOpacity - targetOpacity) < 0.02 ? targetOpacity : nextOpacity;
-    return hexToRgba(color, context.chart.$barFadeState[stateKey]);
+    return hexToRgba(color, hoverOpacity(context, keyPrefix));
   };
+}
+
+function hoverOpacity(context, keyPrefix) {
+  const active = context.chart.$activeBar;
+  if (!active) return 1;
+  const isActive = active.datasetIndex === context.datasetIndex && active.index === context.dataIndex;
+  const targetOpacity = isActive ? 1 : 0.22;
+  context.chart.$barFadeState ||= {};
+  const stateKey = `${keyPrefix}-${context.dataIndex}`;
+  const currentOpacity = context.chart.$barFadeState[stateKey] ?? 1;
+  const nextOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.35;
+  context.chart.$barFadeState[stateKey] = Math.abs(nextOpacity - targetOpacity) < 0.02 ? targetOpacity : nextOpacity;
+  return context.chart.$barFadeState[stateKey];
+}
+
+function chartGradient(chart, color, opacity, direction = "vertical") {
+  const { ctx, chartArea } = chart;
+  if (!chartArea) return hexToRgba(color, opacity);
+  const gradient = direction === "horizontal"
+    ? ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0)
+    : direction === "diagonal"
+      ? ctx.createLinearGradient(chartArea.left, chartArea.bottom, chartArea.right, chartArea.top)
+      : ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+  gradient.addColorStop(0, hexToRgba(color, opacity * 0.58));
+  gradient.addColorStop(0.5, hexToRgba(color, opacity));
+  gradient.addColorStop(1, hexToRgba(color, opacity * 0.76));
+  return gradient;
+}
+
+function donutGradient(chart, color, cacheKey) {
+  const { ctx, chartArea } = chart;
+  if (!chartArea) return color;
+  chart.$donutGradients ||= {};
+  const gradientKey = `${cacheKey}-${chartArea.left}-${chartArea.top}-${chartArea.right}-${chartArea.bottom}-${document.body.className}`;
+  if (chart.$donutGradients[gradientKey]) return chart.$donutGradients[gradientKey];
+
+  const gradient = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom);
+  gradient.addColorStop(0, mixHex(color, "#ffffff", document.body.classList.contains("light-theme") ? 0.24 : 0.18));
+  gradient.addColorStop(0.45, color);
+  gradient.addColorStop(1, mixHex(color, "#02080b", document.body.classList.contains("light-theme") ? 0.18 : 0.34));
+  chart.$donutGradients[gradientKey] = gradient;
+  return gradient;
 }
 
 function handleHoverFade(event, activeElements, chart) {
@@ -1659,11 +1801,34 @@ function handleHoverFade(event, activeElements, chart) {
 }
 
 function hexToRgba(hex, opacity) {
+  if (!String(hex).startsWith("#")) return hex;
   const value = hex.replace("#", "");
-  const red = parseInt(value.slice(0, 2), 16);
-  const green = parseInt(value.slice(2, 4), 16);
-  const blue = parseInt(value.slice(4, 6), 16);
+  const normalized = value.length === 3 ? value.split("").map((char) => `${char}${char}`).join("") : value;
+  const red = parseInt(normalized.slice(0, 2), 16);
+  const green = parseInt(normalized.slice(2, 4), 16);
+  const blue = parseInt(normalized.slice(4, 6), 16);
   return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
+function mixHex(hex, targetHex, weight) {
+  const base = hexToRgb(hex);
+  const target = hexToRgb(targetHex);
+  if (!base || !target) return hex;
+  const mix = (a, b) => Math.round(a + (b - a) * weight);
+  return `#${[mix(base.red, target.red), mix(base.green, target.green), mix(base.blue, target.blue)]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function hexToRgb(hex) {
+  if (!String(hex).startsWith("#")) return null;
+  const value = hex.replace("#", "");
+  const normalized = value.length === 3 ? value.split("").map((char) => `${char}${char}`).join("") : value;
+  return {
+    red: parseInt(normalized.slice(0, 2), 16),
+    green: parseInt(normalized.slice(2, 4), 16),
+    blue: parseInt(normalized.slice(4, 6), 16)
+  };
 }
 
 function chartOptions(indexAxis) {

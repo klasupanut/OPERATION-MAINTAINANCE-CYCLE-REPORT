@@ -684,9 +684,15 @@ button:hover {
 }
 
 .metric {
+  --metric-accent: rgba(53, 216, 255, 0.55);
   position: relative;
   overflow: hidden;
   padding: 18px;
+  border-color: color-mix(in srgb, var(--metric-accent) 48%, transparent);
+  box-shadow:
+    var(--shadow),
+    0 0 18px color-mix(in srgb, var(--metric-accent) 22%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--metric-accent) 7%, transparent);
 }
 
 .metric::before,
@@ -697,6 +703,25 @@ button:hover {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(53, 216, 255, 0.72), transparent);
   content: "";
+  z-index: 0;
+}
+
+.metric::after {
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 27%),
+    linear-gradient(315deg, color-mix(in srgb, var(--metric-accent, #35d8ff) 13%, transparent), transparent 46%);
+  content: "";
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.metric > * {
+  position: relative;
+  z-index: 1;
 }
 
 .metric span,
@@ -721,20 +746,52 @@ button:hover {
   color: var(--red);
 }
 
+.metric.danger {
+  --metric-accent: var(--red);
+}
+
 .metric.warning strong {
   color: var(--amber);
+}
+
+.metric.warning {
+  --metric-accent: var(--amber);
 }
 
 .metric.success strong {
   color: var(--green);
 }
 
+.metric.success {
+  --metric-accent: var(--green);
+}
+
 .metric.done strong {
   color: var(--violet);
 }
 
+.metric.done {
+  --metric-accent: var(--violet);
+}
+
 .metric.neutral strong {
   color: var(--blue);
+}
+
+.metric.neutral {
+  --metric-accent: var(--blue);
+}
+
+.fitout-view.mega-fitout .metric.neutral {
+  --metric-accent: #7c3aed;
+}
+
+.fitout-view.mega-fitout .metric.success {
+  --metric-accent: #00a8e8;
+}
+
+.fitout-view.mega-fitout .metric.warning {
+  --metric-accent: #ff3d8b;
 }
 
 .metric.horizon {
@@ -753,12 +810,24 @@ button:hover {
   background: var(--green);
 }
 
+.metric.horizon.short {
+  --metric-accent: var(--green);
+}
+
 .metric.horizon.medium::before {
   background: var(--amber);
 }
 
+.metric.horizon.medium {
+  --metric-accent: var(--amber);
+}
+
 .metric.horizon.long::before {
   background: var(--blue);
+}
+
+.metric.horizon.long {
+  --metric-accent: var(--blue);
 }
 
 .metric.horizon strong {
@@ -816,10 +885,26 @@ button:hover {
 }
 
 .chart-panel {
+  --metric-accent: var(--blue);
   position: relative;
   overflow: hidden;
   min-height: 300px;
   padding: 18px;
+}
+
+.chart-panel canvas,
+.chart-panel .section-title,
+.chart-panel .status-legend {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-grid .chart-panel:first-child {
+  --metric-accent: var(--blue);
+}
+
+.dashboard-grid .chart-panel:nth-child(2) {
+  --metric-accent: var(--green);
 }
 
 .chart-panel canvas {
@@ -862,6 +947,8 @@ button:hover {
   width: 24px;
   height: 8px;
   border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--legend-color) 64%, #02080b), var(--legend-color));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--legend-color) 32%, transparent);
 }
 
 .status-legend-item b {
@@ -946,6 +1033,52 @@ table {
   min-width: 1420px;
   border-collapse: collapse;
   background: rgba(9, 20, 26, 0.92);
+}
+
+.annual-table table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.annual-table th,
+.annual-table td {
+  padding: 11px 8px;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.annual-table th {
+  white-space: normal;
+}
+
+.annual-table th:nth-child(1),
+.annual-table td:nth-child(1) {
+  width: 7%;
+}
+
+.annual-table th:nth-child(2),
+.annual-table td:nth-child(2),
+.annual-table th:nth-child(3),
+.annual-table td:nth-child(3),
+.annual-table th:nth-child(4),
+.annual-table td:nth-child(4) {
+  width: 8%;
+  text-align: center;
+}
+
+.annual-table th:nth-child(5),
+.annual-table td:nth-child(5),
+.annual-table th:nth-child(6),
+.annual-table td:nth-child(6),
+.annual-table th:nth-child(7),
+.annual-table td:nth-child(7) {
+  width: 18%;
+}
+
+.annual-table th:nth-child(8),
+.annual-table td:nth-child(8) {
+  width: 15%;
 }
 
 th,
@@ -1640,7 +1773,7 @@ body.light-theme .timeline-more {
   }
 
   .mobile-sheet-panel {
-    display: block;
+    display: none;
   }
 
   .topbar-actions {
